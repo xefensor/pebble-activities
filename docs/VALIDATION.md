@@ -2,6 +2,11 @@
 
 ## 0.2.1 acknowledged results and compact Timer projection
 
+Published as a GitHub development prerelease from
+`d2251a1e4e3d8543ad2e8be01fccc8758e785fb6`. Both implementation workflows passed;
+all three downloaded assets match the prepared bytes and SHA-256 checksums.
+Later publication documentation does not replace the frozen SDK or npm package.
+
 Portable validation passes: 122 JavaScript tests, two native C suites and
 23 Python release-helper tests. New cases cover acknowledged completion through
 the provider/consumer, cold reload, stale/conflicting visibility metadata,

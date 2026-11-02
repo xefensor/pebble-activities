@@ -9,14 +9,15 @@ It retains schema 1/ACT1 compatibility. The initial native target is Emery
 (Pebble Time 2). Hardware and real-phone checks are recorded separately from
 portable tests and emulator results in [validation](docs/VALIDATION.md).
 
-The 0.2.1 local candidate adds acknowledged completion visibility and an explicit
-compact Timer projection. The published downloads below remain 0.2.0 until the
-new candidate is published.
+Version 0.2.1 adds acknowledged completion visibility and an explicit compact
+Timer projection while preserving the generic activity convention.
 
-The current [GitHub development prerelease is 0.2.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.0).
-Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/pebble-activities-0.2.0.tgz)
-or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/dist.zip).
-Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/SHA256SUMS.txt).
+The current [GitHub development prerelease is 0.2.1](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.1).
+Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.1/pebble-activities-0.2.1.tgz)
+or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.1/dist.zip).
+Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.2.1/SHA256SUMS.txt).
+The [previous 0.2.0 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.0)
+remains available unchanged.
 The [published 0.1.2 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.1.2)
 remains available unchanged.
 Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
