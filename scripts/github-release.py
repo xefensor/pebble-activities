@@ -10,7 +10,6 @@ import re
 import subprocess
 import tarfile
 import tempfile
-import uuid
 import zipfile
 
 
@@ -126,139 +125,12 @@ def checksum_map(content, asset_paths, checksums_path):
     return selected
 
 
-def pebble_crc(content):
-    """STM32 word CRC used by the Pebble PBW manifest (not ZIP/zlib CRC)."""
-    crc = 0xffffffff
-    for offset in range(0, len(content), 4):
-        word = content[offset:offset + 4]
-        crc ^= int.from_bytes(word, "little" if len(word) == 4 else "big")
-        for _ in range(32):
-            crc = ((crc << 1) ^ (0x04c11db7 if crc & 0x80000000 else 0)) & 0xffffffff
-    return crc
-
-
-def webpack_source(text, original, path):
-    tail = text[len(original):]
-    require(text.startswith(original) and (not tail or re.fullmatch(
-        r"\n{2,}//////////////////\n// WEBPACK FOOTER(?:\n//[^\n]*)*\s*", tail)),
-        "Reference timer PKJS/source differs: " + path)
-
-
-def validate_timer_pkjs(root, commit, prefix, files):
-    script = files.get("pebble-js-app.js", b"").decode()
-    require(script and "pebble-js-app.js.map" in files, "Reference timer PKJS is missing")
-    mapping = json.loads(files["pebble-js-app.js.map"])
-    require(len(mapping["sources"]) == len(mapping["sourcesContent"]), "Invalid timer PKJS source map")
-    expected = {"./src/pkjs/index.js": prefix + "/src/pkjs/index.js",
-                "publisher.js": "src/js/publisher.js", "wire.js": "src/js/wire.js"}
-    mapped = {}
-    originals = {}
-    for path, text in zip(mapping["sources"], mapping["sourcesContent"]):
-        if path.startswith("webpack/bootstrap "):
-            continue
-        require(path in expected or path == "_pkjs_shared_additions.js", "Unexpected timer PKJS module: " + path)
-        require(path not in mapped, "Duplicate timer PKJS source: " + path)
-        module = re.search(r"\n// module id = ([0-9]+)\n", text)
-        require(module, "Timer PKJS source has no module identity: " + path)
-        mapped[path] = int(module[1])
-        if path in expected:
-            original = committed(root, commit, expected[path]).decode()
-            webpack_source(text, original, path)
-        else:
-            original = re.split(r"\n{2,}//////////////////\n// WEBPACK FOOTER", text)[0]
-        originals[path] = original
-    require(set(mapped) == set(expected) | {"_pkjs_shared_additions.js"}, "Timer PKJS omits required sources")
-    modules = {int(number): body for number, body in re.findall(
-        r"/\* ([0-9]+) \*/\n/\*\*\*/ \(function\([^)]*\) \{\n\n(.*?)\n\n/\*\*\*/ \}\)", script, re.S)}
-    require(set(modules) == {0} | set(mapped.values()), "Unexpected timer PKJS compiled modules")
-    for path, original in originals.items():
-        def rewrite(match):
-            target = {"pebble-activities/publisher": "publisher.js", "./wire": "wire.js"}.get(match[2])
-            require(target in mapped, "Unsupported timer PKJS import: " + match[2])
-            return "__webpack_require__(" + str(mapped[target]) + ")"
-        compiled = re.sub(r"\brequire\(\s*(['\"])([^'\"]+)\1\s*\)", rewrite, original)
-        body = "\n".join(line[1:] if line.startswith("\t") else line
-                         for line in modules[mapped[path]].splitlines())
-        require(body.strip() == compiled.strip(), "Timer PKJS compiled code differs: " + path)
-    entry = modules[0].strip()
-    require(entry == "__webpack_require__(%d);\n\tmodule.exports = __webpack_require__(%d);" %
-            (mapped["_pkjs_shared_additions.js"], mapped["./src/pkjs/index.js"]),
-            "Timer PKJS entry differs")
-
-
-def validate_reference_timer(root, config, commit, package, assets):
-    reference = config["reference_timer"]
-    prefix = safe_path(reference["source"])
-    timer = json.loads(committed(root, commit, prefix + "/package.json"))
-    require(timer["version"] == package["version"], "Reference timer version differs from library")
-    path = expand(reference["path"], package)
-    require(path in assets and path.endswith(".pbw"), "Reference timer release asset is missing")
-    files = zip_files(assets[path])
-    info = json.loads(files["appinfo.json"])
-    expected = timer["pebble"]
-    require(info.get("uuid") == expected["uuid"] == reference["app_uuid"] and
-            info.get("versionLabel") == timer["version"], "Reference timer PBW identity/version differs")
-    require(info.get("manifestVersion") == 2 and info.get("watchapp", {}).get("watchface") is False and
-            info.get("projectType") == "native", "Reference timer PBW is not a manifestVersion 2 native watchapp")
-    for field in ("plugin", "messageKeys", "usesPermissions", "targetPlatforms"):
-        require(info.get(field) == expected[field], "Reference timer manifest differs: " + field)
-    require(info.get("appKeys") == expected["messageKeys"], "Reference timer native keys differ")
-    require(info["plugin"].get("script") == "plugin.js" and files.get("plugin.js"),
-            "Reference timer plugin is missing")
-    require(files.get("LICENSE") == committed(root, commit, "LICENSE"), "Reference timer license differs")
-    for notice in ("THIRD-PARTY-NOTICES.md", "licenses/Apache-2.0.txt"):
-        require(files.get(notice) == committed(root, commit, prefix + "/" + notice),
-                "Reference timer SDK notice differs: " + notice)
-    platforms = expected["targetPlatforms"]
-    require({name.split("/")[0] for name in files if name.endswith("/manifest.json")} == set(platforms),
-            "Reference timer platform set differs")
-    for platform in platforms:
-        manifest = json.loads(files[platform + "/manifest.json"])
-        require(manifest.get("manifestVersion") == 2 and manifest.get("type") == "application",
-                "Invalid reference timer native manifest")
-        for field, name in (("application", "pebble-app.bin"), ("resources", "app_resources.pbpack")):
-            metadata = manifest[field]
-            binary = files.get(platform + "/" + name, b"")
-            require(metadata.get("name") == name and len(binary) >= 128 and
-                    metadata.get("size") == len(binary) and metadata.get("crc") == pebble_crc(binary),
-                    "Reference timer native integrity differs: " + name)
-            if field == "application":
-                # Pebble's binary process header stores major/minor only; appinfo above checks full semver.
-                require(binary[:8] == b"PBLAPP\0\0" and binary[8:10] == bytes((16, 0)) and
-                        binary[104:120] == uuid.UUID(expected["uuid"]).bytes and
-                        list(binary[12:14]) == [int(value) for value in timer["version"].split(".")[:2]],
-                        "Reference timer native identity/version differs")
-    validate_timer_pkjs(root, commit, prefix, files)
-    # Recreate the standalone provider from committed sources without SDK/npm/network.
-    with tempfile.TemporaryDirectory(prefix="activity-release-plugin-") as directory:
-        checkout = Path(directory)
-        names = git(root, "ls-tree", "-r", "--name-only", "-z", commit).decode().split("\0")
-        for name in names:
-            if (name.startswith("src/js/") or name == "publisher.js" or
-                    name in ("scripts/bundle-js.py", "scripts/verify-timer-bundle.js",
-                             prefix + "/src/plugin/index.js")):
-                destination = checkout / safe_path(name)
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(committed(root, commit, name))
-        output = checkout / "provider.js"
-        result = subprocess.run(["python3", str(checkout / "scripts/bundle-js.py"),
-                                 str(checkout / prefix / "src/plugin/index.js"), str(output)], capture_output=True)
-        require(result.returncode == 0 and output.is_file(), "Cannot rebuild committed reference timer plugin")
-        require(files["plugin.js"] == output.read_bytes(), "Reference timer plugin/source differs")
-        extracted = checkout / "pbw"
-        extracted.mkdir()
-        for name, content in files.items():
-            destination = extracted / name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
-        result = subprocess.run(["node", str(checkout / "scripts/verify-timer-bundle.js"), str(extracted)],
-                                capture_output=True)
-        require(result.returncode == 0, "Reference timer bundled-runtime handoff failed")
-
-
 def validate_artifacts(root, config, commit, package, assets):
     kind = config["kind"]
     if kind in ("core", "activities"):
+        if kind == "activities":
+            require(len(assets) == 2 and not any(path.endswith(".pbw") for path in assets),
+                    "Activities releases contain only the library SDK and npm package")
         packed = [data for path, data in assets.items() if path.endswith(".tgz")]
         require(len(packed) == 1 and "dist.zip" in assets, "Expected one Core tarball and dist.zip")
         with tarfile.open(fileobj=io.BytesIO(packed[0]), mode="r:gz") as archive:
@@ -285,8 +157,6 @@ def validate_artifacts(root, config, commit, package, assets):
             elif path.startswith("include/") and path.endswith(".h"):
                 require(sdk.get("include/" + package["name"] + "/" + path[8:]) == content,
                         "Core SDK exported header differs: " + path)
-        if kind == "activities":
-            validate_reference_timer(root, config, commit, package, assets)
         return
     source_config = config["source_archive"]
     source_path = expand(source_config["path"], package)

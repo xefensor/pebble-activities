@@ -1,5 +1,19 @@
 # Validation
 
+## 0.1.1 standalone-library packaging
+
+Timer now lives in [pebble-app-timer](https://github.com/xefensor/pebble-app-timer).
+This release changes repository ownership, documentation and packaging; the
+activity protocol and JS/C runtime sources are unchanged from 0.1.0. The library
+build and release no longer require Timer source or a Timer PBW.
+
+- The 91 JavaScript tests and strict native C decode/state/clock/publisher suite pass.
+- Library-only packaging and release-helper regression tests pass, including
+  packaging without a Timer checkout and preserving historical download bytes.
+- The SDK package builds with the installed official SDK 4.33.1 for Emery.
+- No new phone, physical-watch or emulator integration run is claimed for this
+  packaging-only change. The 0.1.0 evidence below remains historical evidence.
+
 ## 0.1.0 stock PebbleOS prerelease
 
 This release targets Emery (Pebble Time 2), built with the official SDK 4.33.1.

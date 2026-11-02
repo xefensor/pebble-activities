@@ -4,14 +4,24 @@ Shared publishing and consuming helpers for ongoing activities on **stock
 PebbleOS**. A compatible provider can expose a timer, elapsed session or formatted
 reading without adding a layout for that particular app to every watchface.
 
-Version 0.1.0 is the first prerelease. The initial native target is Emery
+Version 0.1.1 is a library-only prerelease. The initial native target is Emery
 (Pebble Time 2). Hardware and real-phone checks are recorded separately from
 portable tests and emulator results in [validation](docs/VALIDATION.md).
 
-Download the [Activity Timer PBW](https://github.com/xefensor/pebble-activities/releases/download/v0.1.0/Activity-Timer-0.1.0.pbw),
-the [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.0/pebble-activities-0.1.0.tgz),
-or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.0/dist.zip).
-Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.1.0/SHA256SUMS.txt).
+Download the [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.1/pebble-activities-0.1.1.tgz)
+or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.1/dist.zip).
+Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.1.1/SHA256SUMS.txt).
+Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
+native countdowns to a compatible watchface.
+
+## Version 0.1.1
+
+- Timer now lives in its own [repository](https://github.com/xefensor/pebble-app-timer),
+  with its own builds, releases and bundled provider plugin.
+- Library packaging and checks no longer require a Timer checkout or PBW.
+- The activity protocol and library runtime remain compatible with 0.1.0.
+- Historical 0.1.0 artifacts remain available unchanged; app and library versions
+  now advance independently.
 
 ## Version 0.1.0
 
@@ -29,7 +39,6 @@ Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-act
 | JavaScript publisher and provider | Accept native snapshots into shared phone-side storage, return revision receipts, and answer plugin reads |
 | JavaScript consumer | Discover compatible providers, normalize their state and send a bounded projection through the host's queue |
 | Portable C helpers | Validate atomic packets, track sessions and expiry, and calculate countdown or elapsed time |
-| [Activity Timer](examples/timer/README.md) | A reference native timer, its PKJS bridge and its read-only plugin in one PBW |
 | Optional compatibility adapter | Existing music/notification coordination, including privacy and notification baselines |
 
 The package does not depend on Watchface Core. The host owns AppMessage dispatch,
@@ -40,10 +49,10 @@ can use separate instances of the same helpers while keeping their own UI.
 
 The library is bundled into each consuming app; it is not a separate watchapp or
 background service. A provider plugin may ship alongside its native watchapp, as
-the reference timer does, or in a plugin-only PBW. The phone app must support
+[Timer](https://github.com/xefensor/pebble-app-timer) does, or in a plugin-only PBW. The phone app must support
 Pebble plugins and have the preview enabled where that is required.
 
-For the timer path, install the reference timer and a compatible consumer such as
+For the timer path, install Timer and a compatible consumer such as
 Dynamic. Start a timer on the watch, then return to the watchface. The timer sends
 its state through its own PKJS; its plugin later serves the saved snapshot to the
 consumer. This is a phone-mediated handoff between otherwise separate apps.
@@ -75,7 +84,7 @@ Native consumers include:
 ```
 
 The decoder and state functions register no SDK services. Call them from the
-host's existing lifecycle. The specification and reference timer document the
+host's existing lifecycle. The specification and the standalone Timer repository document the
 exact properties, receipt keys, session handshake and failure cases.
 
 ## Boundaries
@@ -101,21 +110,18 @@ npm test
 pebble build
 ```
 
-Build the timer after the library's `dist.zip` exists:
+Package the built library and check the release helpers:
 
 ```sh
-cd examples/timer
-npm ci --ignore-scripts
-npm test
-python3 scripts/build.py
-cd ../..
+python3 -m unittest discover -s tests -p 'test_*release.py'
 python3 scripts/package-release.py
 ```
 
-The release script freezes the current SDK package and copies the latest packaged
-reference timer into `releases/`; all three download assets receive checksums.
-Release preparation verifies the timer's actual manifest, native identity and
-integrity, bundled JavaScript and license against the committed inputs.
+The release script freezes the current SDK package and writes the versioned npm
+package into `releases/`; both download assets receive checksums. Timer is built
+and released from [its own repository](https://github.com/xefensor/pebble-app-timer).
+A library release does not require a Timer build, and installed apps retain their
+pinned library version until rebuilt.
 
 Consumers should pin the versioned `.tgz` and record its checksum. Updating this
 repository does not silently update installed PBWs. Public release artifacts and

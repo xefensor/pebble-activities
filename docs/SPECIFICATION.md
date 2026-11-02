@@ -140,7 +140,7 @@ it must not subscribe indiscriminately to unrelated sources with side effects.
 
 ## Native publisher and phone handoff
 
-The reference timer bundles its native watchapp, PKJS and provider plugin into
+The separate [Timer app](https://github.com/xefensor/pebble-app-timer) bundles its native watchapp, PKJS and provider plugin into
 one PBW. PKJS and that same PBW's plugin use the same UUID-scoped phone storage.
 This does not create shared native storage between separate watchapps.
 

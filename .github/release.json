@@ -6,15 +6,9 @@
   "prerelease": true,
   "assets": [
     "dist.zip",
-    "releases/pebble-activities-{version}.tgz",
-    "releases/Activity-Timer-{version}.pbw"
+    "releases/pebble-activities-{version}.tgz"
   ],
   "checksums_file": "releases/SHA256SUMS.txt",
-  "reference_timer": {
-    "path": "releases/Activity-Timer-{version}.pbw",
-    "source": "examples/timer",
-    "app_uuid": "50e9ef12-a5ab-4369-a3b5-3447bfba5151"
-  },
   "notes": {
     "path": "README.md",
     "heading": "## Version {version}"

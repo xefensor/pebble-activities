@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze the built SDK and reference timer as versioned release artifacts."""
+"""Freeze the built library SDK and npm package as versioned release artifacts."""
 from pathlib import Path
 import hashlib
 import io
@@ -10,21 +10,6 @@ import zipfile
 
 
 def package(root):
-    pkg = json.loads((root / 'package.json').read_text())
-    timer = json.loads((root / 'examples/timer/package.json').read_text())
-    if timer['version'] != pkg['version']:
-        raise ValueError('Reference timer and library versions differ')
-    timer_name = 'Activity-Timer-' + timer['version'] + '.pbw'
-    timer_source = root / 'examples/timer/dist' / timer_name
-    # Fail before modifying frozen artifacts when the example was not built.
-    timer_bytes = timer_source.read_bytes()
-    with zipfile.ZipFile(io.BytesIO(timer_bytes)) as archive:
-        if archive.testzip() is not None:
-            raise ValueError('Corrupt reference timer PBW')
-        info = json.loads(archive.read('appinfo.json'))
-        if (info.get('uuid') != timer['pebble']['uuid'] or
-                info.get('versionLabel') != timer['version']):
-            raise ValueError('Reference timer PBW identity/version differs')
     sdk = root / 'dist.zip'
     with zipfile.ZipFile(sdk) as archive:
         if archive.testzip() is not None:
@@ -48,10 +33,8 @@ def package(root):
         artifact = Path(tmp) / metadata['filename']
         target = releases / artifact.name
         target.write_bytes(artifact.read_bytes())
-    timer_target = releases / timer_name
-    timer_target.write_bytes(timer_bytes)
     checksums = []
-    for path in (sdk, target, timer_target):
+    for path in (sdk, target):
         checksum = hashlib.sha256(path.read_bytes()).hexdigest()
         checksums.append(checksum + '  ' + str(path.relative_to(root)))
         print(str(path.relative_to(root)), path.stat().st_size, checksum)

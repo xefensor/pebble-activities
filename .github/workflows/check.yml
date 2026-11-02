@@ -18,4 +18,4 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts
       - run: npm test
-      - run: npm test --prefix examples/timer
+      - run: python3 -m unittest discover -s tests -p 'test_*release.py'

@@ -6,8 +6,4 @@ __pycache__/
 .waf*
 .lock-waf*
 dist/
-examples/*/node_modules/
-examples/*/build/
-examples/*/.pebble/
-examples/*/dist/
 

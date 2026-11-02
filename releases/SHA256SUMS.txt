@@ -1,3 +1,2 @@
 db60353d5852c87ff64713c1c8d6b41ae13626bec7e6c48a3d22be582457392a  dist.zip
-46c69a333b81f475d7e6c38f5aae5b82d1d519b743d4875675f44d07d3bf781e  releases/pebble-activities-0.1.0.tgz
-8e1cef05620f3278ab1b5efae65433114cc628d18a0078148fc394e2b0e7adff  releases/Activity-Timer-0.1.0.pbw
+f38d497339c65bdff39b6e7130b9b4820d33d9117e9b17ce236001251db5ae42  releases/pebble-activities-0.1.1.tgz
