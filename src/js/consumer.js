@@ -2,6 +2,7 @@
 
 var wire=require('./wire');
 var view=require('./view');
+var activity=require('./activity');
 var PROPERTIES=['schema_version','kind','state','clock','revision','name','main','footer','observed_at','valid_until','deadline','duration','clock_at','private','unconfirmed','value','artwork'];
 function scalar(p,name,shape,field) {return p && p[name] && p[name][shape] ? p[name][shape][field||'value'] : undefined;}
 function string(p,name) {var v=scalar(p,name,'longText','text');return v===undefined?scalar(p,name,'shortText','text'):v;}
@@ -22,7 +23,8 @@ function sourceItem(plugin,format) {
   var items=[];
   plugin.sources.forEach(function(source){if(source.category===wire.CATEGORY&&Array.isArray(source.items)&&source.properties&&
     Array.isArray(source.properties.schema_version)&&source.properties.schema_version.indexOf('numericValue')>=0){items=items.concat(source.items);}});
-  return format===2&&items.indexOf(view.ITEM)>=0?view.ITEM:items.indexOf(wire.ITEM)>=0?wire.ITEM:null;
+  return format===2&&items.indexOf(activity.ITEM)>=0?activity.ITEM:
+    format===2&&items.indexOf(view.ITEM)>=0?view.ITEM:items.indexOf(wire.ITEM)>=0?wire.ITEM:null;
 }
 function compatible(plugin,format) {
   return !!sourceItem(plugin,format);
@@ -111,9 +113,10 @@ module.exports=function createActivities(options) {
     if(expiry!==null && !wire.integer(expiry,1,wire.MAX_EPOCH)){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
     var next=[],seen=Object.create(null),malformed=false;
     envelope.instances.forEach(function(instance){
-      var source=group.item===view.ITEM?view.sourceCard(instance,group.provider):sourceCard(instance,group.provider);
+      var source=group.item===activity.ITEM?activity.sourceCard(instance,group.provider):
+        group.item===view.ITEM?view.sourceCard(instance,group.provider):sourceCard(instance,group.provider);
       if(!source){malformed=true;return;}
-      var card=nativeFormat===2&&group.item!==view.ITEM?view.fromLegacy(source):source;
+      var card=group.item===activity.ITEM?activity.toView(source):nativeFormat===2&&group.item!==view.ITEM?view.fromLegacy(source):source;
       if(!card){malformed=true;return;}
       if(!accepted(card)){return;}
       var fingerprintCard=clone(source);delete fingerprintCard.unconfirmed;var fingerprint=JSON.stringify(fingerprintCard);
@@ -127,6 +130,7 @@ module.exports=function createActivities(options) {
       }
       if(previous && (card.revision===previous.revision && (metadata!==previous.metadata || group.item===previous.item&&fingerprint!==previous.fingerprint) || previous.terminal && card.state!=='completed' && card.state!=='cancelled')){malformed=true;return;}
       revisions[identity]={revision:card.revision,fingerprint:fingerprint,metadata:metadata,item:group.item,terminal:card.state==='completed'||card.state==='cancelled'};
+      card.sourceFormat=group.item===activity.ITEM?3:group.item===view.ITEM?2:1;
       if(card.kind==='music'){
         card.validUntil=Math.min(card.validUntil,card.observedAt+120);
         if(nativeFormat===2){card.main.validUntil=Math.min(card.main.validUntil,card.validUntil);if(card.support){card.support.validUntil=Math.min(card.support.validUntil,card.validUntil);}}
@@ -148,7 +152,7 @@ module.exports=function createActivities(options) {
     groups[provider]=group;stopGroup(group);group.item=item;group.ready=false;group.settled=false;group.error='';var run=group.generation;
     function live(){return !stopped && connected && enabled && groups[provider]===group && run===group.generation;}
     try{
-      var handle=pebble.subscribeToSource({plugin:provider,category:wire.CATEGORY,item:item,properties:(item===view.ITEM?view.PROPERTIES:PROPERTIES).slice(),iconPixelSize:{w:40,h:40},
+      var handle=pebble.subscribeToSource({plugin:provider,category:wire.CATEGORY,item:item,properties:(item===activity.ITEM?activity.PROPERTIES:item===view.ITEM?view.PROPERTIES:PROPERTIES).slice(),iconPixelSize:{w:40,h:40},
         onData:function(envelope){if(live()){group.settled=true;receive(group,envelope);}},
         onError:function(error){if(!live()){return;}group.settled=true;group.error=errorCode(error);if(group.error==='TIMEOUT'||group.error==='PLUGIN_UNAVAILABLE'||group.error==='RATE_LIMITED'){uncertain(group);}else{group.cards=[];}publish();}});
       if(live()){group.handle=handle;}else if(handle && typeof handle.unsubscribe==='function'){handle.unsubscribe();}

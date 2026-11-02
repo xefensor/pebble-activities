@@ -2,7 +2,7 @@
 
 var wire = require('./complication-data');
 var activityWire = require('../../wire');
-var activityView = require('../../view');
+var activity = require('../../activity');
 // Namespace of this host adapter only; never claim an unknown SDK provider UUID.
 var MUSIC_ADAPTER_UUID = '718089b7-d9d4-4d6b-81c0-915dcd4c7e4a';
 var KIND = wire.SEMANTIC_KIND;
@@ -353,9 +353,11 @@ module.exports = function createContext(options) {
       for (var y=0;y<bitmap.height;y++) { pixels=pixels.concat(bitmap.pixels.slice(y*stride,y*stride+row)); }
       image={width:bitmap.width,height:bitmap.height,palette:bitmap.palette.slice(),pixels:pixels};
     }
-    musicCard=activityView.normalize({provider:provider,id:'legacy-music-'+musicRun,kind:'music',revision:musicRevision,
-      state:playing?'active':'paused',observedAt:records[0].confirmedAt,validUntil:end,private:true,caption:artist,
-      main:{type:'text',label:'Track',text:title},support:artist?{type:'text',label:'Artist',text:artist}:null,image:image});
+    // Missing optional metadata contributes no label or placeholder row.
+    var detail=/^(?:\?|unknown|unknown artist)$/i.test(artist.trim())?'':artist;
+    musicCard=activity.toView({provider:provider,id:'legacy-music-'+musicRun,kind:'music',revision:musicRevision,
+      state:playing?'active':'paused',observedAt:records[0].confirmedAt,validUntil:end,private:true,appName:'Music',
+      content:title,detail:detail||null,image:image});
   }
   function phoneData(envelope) {
     if (!envelope.instances.length) { records[4]=null; return; }

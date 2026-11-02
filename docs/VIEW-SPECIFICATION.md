@@ -1,5 +1,9 @@
 # Activity cards and ACT2 version 2
 
+**Advanced compatibility and native transport.** New plugins should use the simpler
+[notification-style activity API](ACTIVITY-SPECIFICATION.md). This document
+preserves the existing source/native compatibility contract.
+
 Implemented by the unpublished Activities 0.2.0 candidate. This extends the
 project convention on stock PebbleOS; it is not an official platform standard.
 The [schema 1 and ACT1 APIs](SPECIFICATION.md) remain available for existing
@@ -44,7 +48,7 @@ Declare category `activity`, item `card`, schema version 2 and `supportsMultiple
 where appropriate. Keep a separate `session` source for legacy consumers.
 
 A v2 consumer is created with the existing host-injected options and
-`nativeFormat: 2`. It prefers a compatible provider's `card` item, otherwise
+`nativeFormat: 2`. It prefers a compatible provider’s simple `live` item, then `card`, otherwise
 adapts `session` version 1. It never subscribes twice merely to show both forms.
 `catalogue()` and `select()` receive canonical main/support objects for v2.
 `reproject()` republishes a host selection without rebinding providers. The

@@ -1,5 +1,33 @@
 # Validation
 
+## 0.3.0 simple activity contract — 3 November 2026
+
+The current plugin API is `activity/live` schema 3: one content item, optional
+detail and an optional image. The public API has no mandatory field labels,
+main/support trees, meters or host layout selection. Normal/compact presentation
+belongs to consumers. Existing schema 1/2 and ACT1/ACT2 remain compatible.
+
+**141 JavaScript tests, two strict native C suites and 23 Python release-helper
+regressions pass**, together with the SDK 4.33.1 Emery package build. New tests
+cover public text/value/countdown/elapsed helpers, strict bounded descriptors,
+source3 serialization, native provider compatibility, discovery preferring
+live over card/session, immutable source revisions, original observations,
+privacy, hidden terminal results and independently running detail clocks.
+A new schema3 projection is decoded and ticked by the production C implementation.
+No C library source or native packet format changes are required.
+
+Music is adapted through the same simple API. A regression reproduces the
+reported long-title/missing-artist source, checks implicit identity labels,
+omits optional '?' artist data, preserves observation on polling and clears on
+disconnection. The source SDK callback is also used by Dynamic's native fixture
+producer; its own release evidence covers the rendered normal/compact views.
+
+The Timer native bridge opts into the new source while retaining session/card
+compatibility. Original paused visibility, acknowledgement, terminal tombstones
+and source observation/expiry remain authoritative. Real mobile-app provider
+delivery and physical-watch behavior remain separate device checks. Earlier
+published tags and artifacts remain unchanged.
+
 ## 0.2.2 provider selection and transient music bridge — 3 November 2026
 
 Portable checks pass: **129 JavaScript tests, two strict native C suites and

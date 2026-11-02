@@ -1,5 +1,9 @@
 # Pebble Activities specification version 1
 
+**Legacy compatibility.** New plugins should use the simpler
+[notification-style activity API](ACTIVITY-SPECIFICATION.md). This document
+preserves the existing source/native compatibility contract.
+
 This is the public convention implemented by pebble-activities 0.1.0. It is a
 project convention over Pebble's existing plugin API, not an official Pebble
 category or a new plugin shape. Compatible providers can be discovered without

@@ -1,6 +1,7 @@
 'use strict';
 
 module.exports = {
+  activity: require('./activity'),
   wire: require('./wire'),
   view: require('./view'),
   selection: require('./selection'),

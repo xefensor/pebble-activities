@@ -12,10 +12,13 @@ Pebble Watchface Core, Dynamic's renderer and any firmware fork.
   `xefensor/pebble-app-timer`. This repository builds the shared library only.
 - `docs/SPECIFICATION.md` defines our versioned convention using existing Pebble
   property shapes. It is not an official Pebble standard.
-- `docs/VIEW-SPECIFICATION.md` defines opt-in schema 2 cards and ACT2 native views.
+- `docs/ACTIVITY-SPECIFICATION.md` defines the current simple schema 3 activity API:
+  content, optional detail/image, app identity and source lifecycle. Plugins never
+  choose normal/compact layouts or publish mandatory labels/meters.
+- `docs/VIEW-SPECIFICATION.md` preserves advanced schema 2 cards and ACT2 native views.
   Preserve schema 1/ACT1 APIs and default behavior when maintaining them. Source
   revisions stay immutable; only native presentation changes use view sequences.
-  Keep the main/support view bounded, per-item clocks independent and private
+  Keep the internal view bounded, per-item clocks independent and private
   content transient. Visibility of terminal results requires explicit opt-in.
 - The host owns SDK subscriptions, AppMessage dispatch, clocks, timers and UI.
   Share its single queue; do not initialize competing dispatchers.

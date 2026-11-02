@@ -1,32 +1,87 @@
 # Pebble Activities
 
-Shared publishing and consuming helpers for ongoing activities on **stock
-PebbleOS**. A compatible provider can expose a timer, elapsed session or formatted
-reading without adding a layout for that particular app to every watchface.
+Notification-style ongoing activities for **stock PebbleOS**. A plugin publishes
+one piece of content, an optional detail and an optional image. The host presents
+the same activity in normal or compact form. The plugin does not choose layouts,
+arrange labels or configure a slider or meter.
 
-Version 0.2.0 adds bounded two-item activity cards and an opt-in ACT2 native view.
-It retains schema 1/ACT1 compatibility. The initial native target is Emery
-(Pebble Time 2). Hardware and real-phone checks are recorded separately from
-portable tests and emulator results in [validation](docs/VALIDATION.md).
+Version **0.3.0** introduces the simple `activity/live` schema 3 contract. Text,
+formatted values and independent countdown/elapsed clocks use the same API.
+Lifecycle, revision, observation, expiry and privacy remain source truth; the
+library handles their native representation. Schema 1/2 providers and ACT1/ACT2
+transport remain compatible. Emery (Pebble Time 2) is the initial native target.
 
-Version 0.2.1 adds acknowledged completion visibility and an explicit compact
-Timer projection while preserving the generic activity convention.
+## Publish an activity
 
-Version 0.2.2 adds reusable provider ordering, installed-provider metadata and an
-optional transient music bridge for hosts that want one activity list.
+```js
+var activity = require('pebble-activities').activity;
+var current = [];
 
-The current [GitHub development prerelease is 0.2.2](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.2).
-Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.2/pebble-activities-0.2.2.tgz)
-or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.2/dist.zip).
-Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.2.2/SHA256SUMS.txt).
-The [previous 0.2.1 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.1)
-remains available unchanged.
-The [previous 0.2.0 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.0)
-remains available unchanged.
-The [published 0.1.2 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.1.2)
-remains available unchanged.
-Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
-native countdowns to a compatible watchface.
+// Called for an actual source update, not every provider poll. The source owns
+// stable run IDs, revisions and the original observation/expiry of its data.
+function onTimerChanged(timer) {
+  current = [{
+    id: timer.runId,
+    revision: timer.revision,
+    observedAt: timer.observedAt,
+    validUntil: timer.validUntil,
+    state: timer.state,
+    kind: 'timer',
+    private: false,
+    content: timer.state === 'active'
+      ? activity.countdown({deadline: timer.deadline})
+      : activity.countdown({seconds: timer.remaining})
+  }];
+}
+
+var provider = activity.createProvider({
+  pluginUuid: OWN_PLUGIN_UUID,
+  appName: 'Timer',
+  getActivities: function() { return current; }
+});
+Pebble.registerSourceHandler(provider.handleSource);
+```
+
+Declare `activity/live` with `activity.SOURCE_PROPERTIES` in the plugin manifest.
+The provider serves a snapshot without renewing its source observation. The
+native Timer bridge has a separate adapter described below; this example shows
+a plugin that owns its live source data.
+
+A text activity simply uses `content: 'Arriving at your door'`. A measurement
+uses `content: activity.value(6.2, 'mmol/L')`. Add `detail: 'Platform 3'` or a
+clock helper when a second piece of information is useful. Labels are optional
+and reserved for meaning such as `activity.countdown({deadline: end, label: 'Rest'})`.
+The app identity and image stay separate from content. Any kind of activity can
+occupy either host role; normal and compact are presentations of the same data.
+
+See the [simple activity specification](docs/ACTIVITY-SPECIFICATION.md) for
+helpers, source declarations, privacy and migration. Real-phone and physical
+watch checks are recorded separately from portable/emulator results in
+[validation](docs/VALIDATION.md).
+
+## Download
+
+The current [GitHub development prerelease is 0.3.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.3.0).
+Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/pebble-activities-0.3.0.tgz)
+or [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/dist.zip),
+and verify [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/SHA256SUMS.txt).
+[Earlier releases](https://github.com/xefensor/pebble-activities/releases) retain
+their original tags and bytes. Install [Timer](https://github.com/xefensor/pebble-app-timer)
+separately to publish native countdowns.
+
+## Version 0.3.0
+
+- Introduce notification-style `activity/live` schema 3: content, optional detail
+  and image, with app identity and authoritative source lifecycle metadata.
+- Provide text, value, countdown and elapsed helpers without mandatory visible
+  labels, meter definitions, field trees or host-specific layout choices.
+- Prefer simple sources during discovery and validate their immutable revisions
+  before compiling the existing bounded ACT2 packet. Existing session/card
+  providers and native packet formats remain supported.
+- Adapt native Timer publishing and transient Music through the same model;
+  retain original observations, acknowledgement tombstones, privacy and expiry.
+- Keep normal/compact composition, provider priority and settings owned by hosts.
+  Published 0.2.2 and earlier assets remain unchanged.
 
 ## Version 0.2.2
 
@@ -98,7 +153,8 @@ See the [card and native view specification](docs/VIEW-SPECIFICATION.md).
 
 | Part | Responsibility |
 | --- | --- |
-| [Public convention](docs/SPECIFICATION.md) | Versioned `activity/session` source properties using existing Pebble shapes |
+| [Simple activity API](docs/ACTIVITY-SPECIFICATION.md) | Content, optional detail/image, app identity and lifecycle through `activity/live` schema 3 |
+| Compatibility contracts | Advanced schema 2 and legacy schema 1 remain supported; ACT2 native transport stays internal |
 | JavaScript publisher and provider | Accept native snapshots into shared phone-side storage, return revision receipts, and answer plugin reads |
 | JavaScript consumer | Discover compatible providers, normalize their state and send a bounded projection through the host's queue |
 | Portable C helpers | Validate atomic packets, track sessions and expiry, and calculate countdown or elapsed time |
@@ -124,47 +180,36 @@ The timer owns its alarm even when sharing fails. Without a phone connection, a
 consumer may have no activity or an explicitly unconfirmed earlier countdown.
 Reaching zero locally does not prove that the originating app completed or rang.
 
-## Developer entry points
+## Host and native integration
 
-```js
-var activities = require('pebble-activities');
-```
+Use `createActivities({..., nativeFormat: 2})` with the host’s existing queue,
+clock and SDK lifecycle. Discovery prefers `activity/live`, then the advanced
+`activity/card`, then legacy `activity/session`, once per compatible provider.
+`catalogue()` supplies validated internal views to host selection; plugins never
+choose Dynamic’s priority or layout. Another host can keep its own order and UI.
 
-- `createPublisher` accepts a versioned native snapshot and an optional stable slot, validates revisions,
-  writes and reads back phone-side shared state, and returns an application receipt.
-- `createProvider` exposes the saved state through an independently callable plugin.
-  Its optional `timerPresentation: 'compact'` projects Timer as a countdown and
-  one identity caption, while the default `'detailed'` preserves derived elapsed
-  support. Both preserve original observations and acknowledged terminal
-  visibility; see the [projection contract](docs/VIEW-SPECIFICATION.md#native-timer-compatibility).
-- `createActivities` discovers compatible providers and supplies a bounded native
-  projection. Inject Pebble, message keys, the shared send queue, clock and timers.
-- `wire` defines the independent ACT1 transport. It does not reinterpret Core's
-  legacy complication/context packets.
-- `createContext` is the optional compatibility adapter for standard music and
-  notification sources. It is separate from the generic source convention.
+`activity.toView()` compiles a simple record into the existing ACT2 transport.
+The native packet is unchanged. Its mandatory field bookkeeping stays internal;
+public activities contain no `main`, `support`, `meter` or layout properties.
+The [simple source contract](docs/ACTIVITY-SPECIFICATION.md) is the current
+plugin authoring guide. [Schema 2 and ACT2](docs/VIEW-SPECIFICATION.md) and
+[schema 1/ACT1](docs/SPECIFICATION.md) remain supported compatibility contracts.
+Historical architecture/browser studies describe earlier design decisions and
+do not add requirements to the simple API.
 
-Native consumers include:
+For native watchapps, `createPublisher` still accepts authoritative bridge
+snapshots, validates revision floors and writes/reads back public shared state
+before issuing receipts. `createProvider({presentation: 'simple', appName: 'Timer',
+...})` exposes those saved snapshots as `activity/live`; existing session/card
+sources remain available. No alarm, native storage or receipt ownership moves
+to the consuming watchface.
 
-```c
-#include <pebble-activities/pebble-activities.h>
-```
-
-The decoder and state functions register no SDK services. Call them from the
-host's existing lifecycle. The specification and the standalone Timer repository document the
-exact properties, receipt keys, session handshake and failure cases.
-
-### Presentation across apps
-
-The [use-case and architecture review](docs/USE-CASE-REVIEW.md) compares the
-supported summary against a proposed bounded main-plus-supporting-item view.
-It covers source/view revisions, retention, result visibility and measured ARM
-storage, while keeping layouts owned by consumers. Any compatible activity may
-occupy either Dynamic position. The [native design](docs/NATIVE-ACTIVITY-DESIGN.md)
-documents compatibility and correctness work for the current path. These are
-designs; [specification version 1](docs/SPECIFICATION.md) remains the implemented
-contract. The earlier [browser study](docs/presentation-study/README.md) remains
-an exploration.
+`createContext` adapts standard Music and notification sources with their
+existing privacy/baseline rules. Its transient Music activity now uses the
+same simple model, without fabricated Track/Artist labels or a missing-artist
+placeholder. Notifications retain their separate bounded interruption policy.
+Native consumers include `pebble-activity-view.h`; these helpers register no SDK
+services and allocate no host UI. See the specification for exact failure rules.
 
 ### Multiple native timers
 

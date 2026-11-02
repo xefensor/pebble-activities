@@ -770,3 +770,17 @@ test('Context sidecars remain paired with boundary retries and the latest queued
   active.success();assert.equal(f.state().session,47);assert.equal(f.state().event,0);
   assert.equal(f.state().paused,false);assert.equal(f.packet()[0].text,'Latest');assert.equal(f.packet()[2].status,0);
 });
+
+test('simple Music activity contains title and useful artist without Track/Artist boilerplate or unknown placeholders',()=>{
+  const f=fixture();f.client.refresh(true,59);
+  for(const artist of ['?', 'Unknown', 'unknown artist', '']) {
+    f.source('music',music(true,'Better Than The Cyberpunk',artist));
+    const card=f.client.musicActivity();assert.ok(card);assert.equal(card.sourceFormat,3);
+    assert.equal(card.main.text,'Better Than The Cyberpunk');assert.equal(card.main.label,'Music');
+    assert.equal(card.caption,'Music');assert.equal(card.support,null);assert.equal(card.private,true);
+  }
+  f.source('music',music(true,'Better Than The Cyberpunk','Artist Name'));
+  const card=f.client.musicActivity();assert.equal(card.support.text,'Artist Name');assert.equal(card.support.label,'Music');
+  const original=JSON.stringify(card);f.tick(1000);assert.equal(JSON.stringify(f.client.musicActivity()),original);
+  f.client.connectionChanged(false);assert.equal(f.client.musicActivity(),null);
+});

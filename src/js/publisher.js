@@ -2,6 +2,7 @@
 
 var wire=require('./wire');
 var view=require('./view');
+var activity=require('./activity');
 var DEFAULT_KEY='pebble.activities.publisher.v1';
 var MAX_RECORDS=8;
 function record(snapshot,provider){
@@ -137,6 +138,7 @@ function properties(card,request) {
 }
 function createProvider(options) {
   options=options||{};
+  if(options.presentation!==undefined&&options.presentation!=='simple'){throw new Error('INVALID_PRESENTATION');}
   if(options.timerPresentation!==undefined&&options.timerPresentation!=='detailed'&&options.timerPresentation!=='compact'){
     throw new Error('INVALID_TIMER_PRESENTATION');
   }
@@ -145,7 +147,10 @@ function createProvider(options) {
     var nowMs=now(),slots=loadState(storage,key,options.pluginUuid).slots,instances=[];
     slots.forEach(function(card) {
       if(card && card.validUntil*1000>nowMs) {
-        if(request&&request.item===view.ITEM){
+        if(request&&request.item===activity.ITEM&&options.presentation==='simple'){
+          var simple=activity.fromLegacy(card,{appName:options.appName});
+          if(simple){simple.unconfirmed=true;var instance=activity.toSourceInstance(simple,request);if(instance){instances.push(instance);}}
+        }else if(request&&request.item===view.ITEM){
           var projected=view.fromLegacy(card,{terminalResults:true,timerPresentation:options.timerPresentation});
           if(projected){projected.unconfirmed=true;var instance=view.toSourceInstance(projected,request);if(instance){instances.push(instance);}}
         }else{instances.push({instanceId:card.id,properties:properties(card,request)});}
@@ -154,7 +159,8 @@ function createProvider(options) {
     return {validUntilMs:Math.floor(nowMs+30000),instances:instances};
   }
   function handleSource(request,respond) {
-    if(!request || request.category!==wire.CATEGORY || request.item!==wire.ITEM&&request.item!==view.ITEM) {
+    if(!request || request.category!==wire.CATEGORY || request.item!==wire.ITEM&&request.item!==view.ITEM&&
+        !(request.item===activity.ITEM&&options.presentation==='simple')) {
       if(respond && typeof respond.error==='function') {respond.error('INVALID_REQUEST','Unsupported source');}
       return;
     }

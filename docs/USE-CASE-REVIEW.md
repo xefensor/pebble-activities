@@ -1,5 +1,9 @@
 # Activity use cases and architecture review
 
+**Historical design review.** Version 0.3.0 implements the simpler
+[notification-style activity contract](ACTIVITY-SPECIFICATION.md). The rich
+main/support design below remains compatibility history, not the new plugin API.
+
 **Status: recommended next-generation direction, 2 November 2026.** Xef
 authorized reconsidering the architecture from the ground up. This review
 compares the current native summary with broader activity requirements. It
