@@ -91,7 +91,9 @@ function normalize(input,provider){
 }
 function fromLegacy(input,options){
   options=options||{};
-  var legacy=wire.normalize(input);if(!legacy){return null;}
+  var legacy=wire.normalize(input);if(!legacy||!bool(input.showTerminal)||
+      options.timerPresentation!==undefined&&options.timerPresentation!=='detailed'&&options.timerPresentation!=='compact'){return null;}
+  var compactTimer=legacy.kind==='timer'&&options.timerPresentation==='compact';
   var main,terminal=legacy.state==='completed'||legacy.state==='cancelled';
   if(legacy.clock!=='none'){
     main={type:'clock',label:legacy.clock==='deadline'?'Left':'Elapsed',mode:legacy.clock,running:legacy.state==='active',
@@ -104,13 +106,18 @@ function fromLegacy(input,options){
   var card={provider:legacy.provider,id:legacy.id,kind:legacy.kind,revision:legacy.revision,state:legacy.state,
     observedAt:legacy.observedAt,validUntil:legacy.validUntil,private:legacy.private,unconfirmed:legacy.unconfirmed,
     caption:legacy.footer,main:main,image:legacy.image};
-  if(legacy.kind==='timer'&&legacy.clock==='deadline'&&wire.integer(input.totalDuration,0,MAX)){
+  if(!compactTimer&&legacy.kind==='timer'&&legacy.clock==='deadline'&&wire.integer(input.totalDuration,0,MAX)){
     card.support={type:'clock',label:'Elapsed',mode:'elapsed',running:legacy.state==='active',
       baseSeconds:Math.max(0,input.totalDuration-main.baseSeconds),anchorAt:legacy.state==='active'?legacy.observedAt:0,retain:!legacy.private};
   }
-  if(options.terminalResults&&legacy.kind==='timer'&&legacy.state==='completed'){
+  if(options.terminalResults&&input.showTerminal!==false&&legacy.kind==='timer'&&legacy.state==='completed'){
     card.showTerminal=true;card.main={type:'text',label:'State',text:'Finished',retain:!legacy.private};
-    if(wire.integer(input.totalDuration,0,MAX)){card.support={type:'clock',label:'Elapsed',mode:'elapsed',running:false,baseSeconds:input.totalDuration,anchorAt:0,retain:!legacy.private};}
+    if(!compactTimer&&wire.integer(input.totalDuration,0,MAX)){card.support={type:'clock',label:'Elapsed',mode:'elapsed',running:false,baseSeconds:input.totalDuration,anchorAt:0,retain:!legacy.private};}
+  }
+  if(compactTimer&&legacy.clock==='deadline'&&card.caption){
+    // One explicit identity caption fits both fields, so a host can deduplicate
+    // by exact equality without guessing which clock labels are expendable.
+    card.caption=clean(card.caption,LIMITS.label);card.main.label=card.caption;
   }
   // Legacy sources had separate maximum main/caption buffers. Fit the optional
   // caption into the shared pool; never trim a structured clock or value unit.

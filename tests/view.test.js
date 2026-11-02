@@ -148,3 +148,79 @@ test('saved native completion has a bounded cached result, while cancellation re
   publisher.accept(legacy({revision:2,state:'cancelled',clock:'none',deadline:0,totalDuration:600}));
   assert.equal(view.sourceCard(provider.source({item:'card'}).instances[0],P).showTerminal,false);
 });
+test('compact Timer presentation has one identity caption without changing its source metadata',()=>{
+  const store=storage(),publisher=lib.createPublisher({storage:store,pluginUuid:P});
+  publisher.accept(legacy({totalDuration:900}));
+  const compact=lib.createProvider({storage:store,pluginUuid:P,now:()=>N*1000,timerPresentation:'compact'});
+  const result=view.sourceCard(compact.source({item:'card'}).instances[0],P);
+  assert.equal(result.main.type,'clock');assert.equal(result.main.mode,'deadline');assert.equal(result.main.baseSeconds,600);
+  assert.equal(result.caption,'Pasta');assert.equal(result.main.label,result.caption);assert.equal(result.support,null);
+  assert.equal(result.observedAt,N);assert.equal(result.main.anchorAt,N);assert.equal(result.unconfirmed,true);
+  assert.equal(JSON.parse(store.getItem(require('../src/js/publisher').DEFAULT_KEY)).card.totalDuration,900);
+  const detailed=lib.createProvider({storage:store,pluginUuid:P,now:()=>N*1000});
+  assert.equal(view.sourceCard(detailed.source({item:'card'}).instances[0],P).support.baseSeconds,300);
+  assert.deepEqual(compact.source({item:'session'}),detailed.source({item:'session'}));
+  for(const footer of ['', 'Long name '.repeat(15)]){
+    const projected=view.fromLegacy(legacy({footer,totalDuration:900}),{timerPresentation:'compact'});
+    assert.ok(projected);assert.equal(projected.support,null);
+    assert.equal(projected.main.label,footer?projected.caption:'Left');
+    assert.ok(Buffer.byteLength(projected.main.label)<=view.LIMITS.label);
+  }
+  const paused=view.fromLegacy(legacy({state:'paused',deadline:0,duration:400,totalDuration:900}),{timerPresentation:'compact'});
+  assert.equal(paused.main.running,false);assert.equal(paused.main.baseSeconds,400);assert.equal(paused.support,null);
+  const workout=view.fromLegacy(legacy({kind:'workout',footer:'Workout'}),{timerPresentation:'compact'});
+  assert.equal(workout.main.label,'Left');assert.equal(workout.caption,'Workout');
+  assert.equal(view.fromLegacy(legacy(),{timerPresentation:'guess'}),null);
+  assert.throws(()=>lib.createProvider({storage:store,pluginUuid:P,timerPresentation:'guess'}),/INVALID_TIMER_PRESENTATION/);
+});
+test('acknowledged completion publishes a hidden terminal revision and remains hidden after cold reads',()=>{
+  const store=storage(),publisher=lib.createPublisher({storage:store,pluginUuid:P});
+  assert.equal(publisher.accept(legacy({revision:1,state:'completed',clock:'none',deadline:0,totalDuration:600,
+    validUntil:N+60,showTerminal:true})).ACTIVITY_ACCEPTED_REVISION,1);
+  const f=fixture();f.consumer.refresh(true,42);
+  function envelope(at=N){
+    const result=lib.createProvider({storage:store,pluginUuid:P,now:()=>at*1000,timerPresentation:'compact'}).source({item:'card'});
+    result.pluginUuid=P;return result;
+  }
+  f.data(envelope());assert.equal(f.consumer.catalogue().length,1);
+  const acknowledged=legacy({revision:2,state:'completed',clock:'none',deadline:0,totalDuration:600,
+    validUntil:N+60,showTerminal:false});
+  assert.equal(publisher.accept(acknowledged).ACTIVITY_ACCEPTED_REVISION,2);
+  const hidden=view.sourceCard(envelope().instances[0],P);
+  assert.equal(hidden.state,'completed');assert.equal(hidden.revision,2);assert.equal(hidden.showTerminal,false);
+  assert.equal(hidden.observedAt,N);assert.equal(hidden.validUntil,N+60);
+  f.data(envelope());assert.equal(f.consumer.catalogue().length,0);assert.equal(f.packet()[5],0);
+  assert.equal(publisher.accept(Object.assign({},acknowledged,{showTerminal:true})).ACTIVITY_ERROR,'REVISION_CONFLICT');
+  assert.equal(publisher.accept(Object.assign({},acknowledged,{revision:1,showTerminal:true})).ACTIVITY_ERROR,'STALE_REVISION');
+  const reopened=lib.createPublisher({storage:store,pluginUuid:P});
+  assert.equal(reopened.accept(Object.assign({},acknowledged,{revision:3})).ACTIVITY_ACCEPTED_REVISION,3);
+  assert.equal(view.sourceCard(envelope(N+40).instances[0],P).showTerminal,false);
+  assert.equal(envelope(N+61).instances.length,0);
+  assert.equal(reopened.lastRevision(),3);
+  assert.equal(reopened.accept(legacy({revision:4})).ACTIVITY_ERROR,'TERMINAL_RUN');
+});
+test('terminal visibility metadata is strict, revisioned and never persists private content',()=>{
+  const base={ACTIVITY_SCHEMA_VERSION:1,ACTIVITY_RUN:'native:1',ACTIVITY_REVISION:1,ACTIVITY_STATE:'completed',
+    ACTIVITY_KIND:'timer',ACTIVITY_CLOCK:'none',ACTIVITY_FOOTER:'Pasta',ACTIVITY_OBSERVED_AT:N,ACTIVITY_VALID_UNTIL:N+60,
+    ACTIVITY_PRIVATE:0,ACTIVITY_PUBLISH_SESSION:40};
+  for(const [value,expected] of [[true,true],[false,false],[1,true],[0,false]]){
+    const store=storage(),publisher=lib.createPublisher({storage:store,pluginUuid:P});
+    assert.equal(publisher.handleMessage(Object.assign({},base,{ACTIVITY_SHOW_TERMINAL:value})).ACTIVITY_ACCEPTED_REVISION,1);
+    assert.equal(JSON.parse(store.getItem(require('../src/js/publisher').DEFAULT_KEY)).card.showTerminal,expected);
+    const result=lib.createProvider({storage:store,pluginUuid:P,now:()=>N*1000}).source({item:'card'});
+    assert.equal(view.sourceCard(result.instances[0],P).showTerminal,expected);
+  }
+  for(const value of ['false','true',null,2,-1,{},[]]){
+    const store=storage(),publisher=lib.createPublisher({storage:store,pluginUuid:P});
+    assert.deepEqual(publisher.handleMessage(Object.assign({},base,{ACTIVITY_SHOW_TERMINAL:value})),
+      {ACTIVITY_ERROR:'INVALID_SNAPSHOT',ACTIVITY_PUBLISH_SESSION:40});
+    assert.equal(store.values.size,0);
+    assert.equal(publisher.accept(legacy({showTerminal:value})).ACTIVITY_ERROR,'INVALID_SNAPSHOT');
+    assert.equal(view.fromLegacy(legacy({showTerminal:value}),{terminalResults:true}),null);
+  }
+  const store=storage(),publisher=lib.createPublisher({storage:store,pluginUuid:P});
+  assert.equal(publisher.handleMessage(Object.assign({},base,{ACTIVITY_PRIVATE:1,ACTIVITY_SHOW_TERMINAL:1})).ACTIVITY_ERROR,
+    'PRIVATE_PERSISTENCE_DISABLED');
+  assert.doesNotMatch(store.getItem(require('../src/js/publisher').DEFAULT_KEY),/Pasta|native:1|showTerminal/);
+  assert.equal(lib.createProvider({storage:store,pluginUuid:P,now:()=>N*1000}).source({item:'card'}).instances.length,0);
+});

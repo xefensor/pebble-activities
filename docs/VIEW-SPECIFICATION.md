@@ -80,8 +80,9 @@ Permission to show last-reported data does not authorize persistent history.
 Countdown zero means due/uncertain, not source completion. Completed/cancelled
 runs remain terminal. They display only if the source explicitly sets
 `showTerminal`, and only until original validity. A result's age does not restart
-the activity. Native Timer opts into a brief completed result; cancellation
-still retracts it.
+the activity. Native Timer opts into a brief unacknowledged completed result;
+Done publishes a newer hidden completed revision, while cancellation still
+retracts it. Acknowledgement does not change completion into cancellation.
 
 A meter supplies `kind: progress|level`, `source: main|support`, and a valid
 numeric range for the referenced value. The phone derives its normalized fill
@@ -188,13 +189,30 @@ every second. Hosts own fonts, geometry, compact provenance and message buffers.
 ## Native Timer compatibility
 
 Timer adds optional internal bridge key `ACTIVITY_TOTAL_DURATION` (1022), with
-the configured duration. The publisher validates and preserves `totalDuration`
+the current run's duration span. The publisher validates and preserves `totalDuration`
 as immutable per-record metadata alongside existing slots and revision floors.
-Old snapshots remain readable. Native persistence and app/plugin UUIDs do not change.
+`ACTIVITY_SHOW_TERMINAL` (1023) adds optional Boolean `showTerminal` metadata;
+native dictionaries accept only Boolean values or numeric zero/one. Done keeps
+the source state completed, advances its revision, and publishes false. The
+hidden result remains a revision tombstone until its original validity, with
+no renewed observation or visibility on polling/reconnection. Visibility
+changes at the same revision conflict just like duration changes. Older
+snapshots without this optional metadata retain the preceding projection
+behavior. Neither schema nor the ACT1/ACT2 packet format changes.
 
-The legacy `session` source remains schema 1. The `card` source derives Remaining
-and Elapsed from the same observation, with independent local clocks. Elapsed
-means progress within the current duration setting, excluding pauses; Edit
-resets that setting and its elapsed value, matching the native progress display.
-Old snapshots without total duration omit the supporting clock. Cached native
+The legacy `session` source remains schema 1. By default the `card` source
+derives Remaining and Elapsed from the same observation, with independent local
+clocks. Elapsed means progress within the current run span, excluding pauses.
+Old snapshots without total duration omit the supporting clock.
+
+An independently callable provider may explicitly choose
+`createProvider({ ..., timerPresentation: 'compact' })`, also supported by
+`view.fromLegacy`. For Timer deadline records this omits the derived elapsed
+clock and uses the identity caption as the main label; both are bounded to the
+same 64 UTF-8 bytes so hosts can deduplicate them by exact equality. Without a
+caption, the meaningful clock label remains. Completed Timer results likewise
+omit their derived elapsed clock. This is a projection choice: the stored
+`totalDuration`, source revision, original observation/expiry, schema 1 response
+and unrelated activity labels/supporting items remain unchanged. The default
+`timerPresentation: 'detailed'` preserves the previous projection. Cached native
 data remains explicitly unconfirmed, including after reconnection.

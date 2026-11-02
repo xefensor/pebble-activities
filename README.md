@@ -9,6 +9,10 @@ It retains schema 1/ACT1 compatibility. The initial native target is Emery
 (Pebble Time 2). Hardware and real-phone checks are recorded separately from
 portable tests and emulator results in [validation](docs/VALIDATION.md).
 
+The 0.2.1 local candidate adds acknowledged completion visibility and an explicit
+compact Timer projection. The published downloads below remain 0.2.0 until the
+new candidate is published.
+
 The current [GitHub development prerelease is 0.2.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.0).
 Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/pebble-activities-0.2.0.tgz)
 or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/dist.zip).
@@ -17,6 +21,17 @@ The [published 0.1.2 release](https://github.com/xefensor/pebble-activities/rele
 remains available unchanged.
 Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
 native countdowns to a compatible watchface.
+
+## Version 0.2.1
+
+- Native publishers may explicitly hide an acknowledged completed result while
+  preserving its completed lifecycle and revision tombstone. Visibility changes
+  require a newer source revision.
+- Providers may request `timerPresentation: 'compact'` for a countdown and one
+  identity caption. The detailed Timer projection and generic supporting items
+  remain available; configured duration stays in the saved source record.
+- Existing schema 1/2 sources, ACT1/ACT2 packets, privacy and expiry rules remain
+  compatible. Published 0.2.0 artifacts are preserved.
 
 ## Version 0.2.0
 
@@ -100,6 +115,10 @@ var activities = require('pebble-activities');
 - `createPublisher` accepts a versioned native snapshot and an optional stable slot, validates revisions,
   writes and reads back phone-side shared state, and returns an application receipt.
 - `createProvider` exposes the saved state through an independently callable plugin.
+  Its optional `timerPresentation: 'compact'` projects Timer as a countdown and
+  one identity caption, while the default `'detailed'` preserves derived elapsed
+  support. Both preserve original observations and acknowledged terminal
+  visibility; see the [projection contract](docs/VIEW-SPECIFICATION.md#native-timer-compatibility).
 - `createActivities` discovers compatible providers and supplies a bounded native
   projection. Inject Pebble, message keys, the shared send queue, clock and timers.
 - `wire` defines the independent ACT1 transport. It does not reinterpret Core's

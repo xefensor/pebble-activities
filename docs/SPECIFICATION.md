@@ -162,7 +162,13 @@ The dictionary names are `ACTIVITY_SCHEMA_VERSION`, `ACTIVITY_RUN`,
 `ACTIVITY_REVISION`, `ACTIVITY_STATE`, `ACTIVITY_KIND`, `ACTIVITY_CLOCK`,
 `ACTIVITY_NAME`, `ACTIVITY_MAIN`, `ACTIVITY_FOOTER`, `ACTIVITY_OBSERVED_AT`,
 `ACTIVITY_VALID_UNTIL`, `ACTIVITY_DEADLINE`, `ACTIVITY_DURATION`,
-`ACTIVITY_CLOCK_AT`, and optional `ACTIVITY_PRIVATE` and `ACTIVITY_SLOT`. States `running` and
+`ACTIVITY_CLOCK_AT`, and optional `ACTIVITY_PRIVATE`, `ACTIVITY_SLOT`,
+`ACTIVITY_TOTAL_DURATION` and `ACTIVITY_SHOW_TERMINAL`. The last two are
+validated bridge metadata for the opt-in schema 2 projection, not new ACT1 wire
+fields. Terminal visibility is Boolean (native zero/one is also accepted) and
+immutable at the same revision. See the
+[Timer projection contract](VIEW-SPECIFICATION.md#native-timer-compatibility).
+States `running` and
 `finished` are accepted native-dictionary aliases for active and completed.
 The source and wire convention always use the canonical names.
 

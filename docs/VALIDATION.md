@@ -1,5 +1,16 @@
 # Validation
 
+## 0.2.1 acknowledged results and compact Timer projection
+
+Portable validation passes: 122 JavaScript tests, two native C suites and
+23 Python release-helper tests. New cases cover acknowledged completion through
+the provider/consumer, cold reload, stale/conflicting visibility metadata,
+privacy and compact Timer projection without altering detailed/default sources.
+An SDK 4.33.1 Emery package build also passes. The native wire format and native
+library sources are unchanged. No live-phone
+or physical-watch validation is claimed; Timer and Dynamic record their own
+consumer/build evidence.
+
 ## 0.2.0 GitHub prerelease publication — 2 November 2026
 
 Version 0.2.0 was published from commit
