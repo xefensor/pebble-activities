@@ -1,5 +1,13 @@
 # Validation
 
+## 0.2.0 GitHub prerelease publication — 2 November 2026
+
+Version 0.2.0 was published from commit
+`af6c48f727c33cd16ded003347a7a4639fd99901`. Both GitHub workflows passed.
+All three published assets were downloaded and match the prepared files and
+checksums. The ACT2 validation below describes those exact runtime/SDK bytes;
+publication-status documentation updates do not replace the frozen artifacts.
+
 ## Local CLI recovery — 2 November 2026
 
 GitHub `main` and v0.1.2 were checked at

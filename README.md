@@ -4,14 +4,17 @@ Shared publishing and consuming helpers for ongoing activities on **stock
 PebbleOS**. A compatible provider can expose a timer, elapsed session or formatted
 reading without adding a layout for that particular app to every watchface.
 
-The 0.2.0 candidate adds bounded two-item activity cards and an opt-in ACT2 native view.
+Version 0.2.0 adds bounded two-item activity cards and an opt-in ACT2 native view.
 It retains schema 1/ACT1 compatibility. The initial native target is Emery
 (Pebble Time 2). Hardware and real-phone checks are recorded separately from
 portable tests and emulator results in [validation](docs/VALIDATION.md).
 
-The last published version is 0.1.2. Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/pebble-activities-0.1.2.tgz)
-or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/dist.zip).
-Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/SHA256SUMS.txt).
+The current [GitHub development prerelease is 0.2.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.0).
+Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/pebble-activities-0.2.0.tgz)
+or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/dist.zip).
+Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.2.0/SHA256SUMS.txt).
+The [published 0.1.2 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.1.2)
+remains available unchanged.
 Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
 native countdowns to a compatible watchface.
 
