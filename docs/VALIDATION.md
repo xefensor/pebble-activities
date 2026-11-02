@@ -1,5 +1,25 @@
 # Validation
 
+## Local CLI recovery — 2 November 2026
+
+GitHub `main` and v0.1.2 were checked at
+`baac66dc88a6be6062dc8fe57156fdb96007b3c7`. Applying the supplied patch
+to its documented base reproduced all 61 manifest-listed files and exactly the
+already-published Git tree. The local `recovery/0.1.2-2026-11-02` branch therefore
+reuses that commit rather than duplicating or republishing the library changes.
+
+Fresh checks pass: `npm ci --ignore-scripts`, 102 JavaScript tests, the strict
+native C suite, 23 Python release-helper tests, and an SDK 4.33.1 Emery library
+build. The sandbox's captured subprocess restriction required a local Node
+runner adapter using temporary files and `--test-isolation=none`; assertions
+and production code were unchanged. The rebuilt SDK archive was saved separately
+in the common recovery workspace, and the published `dist.zip` bytes restored.
+All released tarballs remain unchanged, including the exact 0.1.2 archive pinned
+in both consumers. This documentation checkpoint does not require a new release.
+
+Fresh Timer/Dynamic integration evidence belongs to their recovery branches.
+There is no new physical-watch or real-phone verification for this library.
+
 ## 0.1.2 bounded multi-record publishing
 
 - 102 JavaScript tests and the strict native C decode/state/clock/publisher suite
