@@ -19,6 +19,9 @@ Pebble Watchface Core, Dynamic's renderer and any firmware fork.
 
 - Native timer state and its alarm remain authoritative when the phone is absent.
 - Phone receipt means accepted shared state, not an alarm or a disk-flush guarantee.
+- A host may opt into at most eight stable publisher slots. Slot zero is the
+  legacy record; a source-wide revision floor applies across every slot. Slot
+  reuse replaces only its prior run and must not evict another active record.
 - Preserve source/run identity, revisions and observation time. Polling a saved
   snapshot must not renew its native observation. Zero is not proof of completion.
 - Provider discovery validates the actual returned UUID and handles removal,

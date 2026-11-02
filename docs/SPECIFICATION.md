@@ -145,8 +145,8 @@ one PBW. PKJS and that same PBW's plugin use the same UUID-scoped phone storage.
 This does not create shared native storage between separate watchapps.
 
 The native app owns authoritative state and alarm scheduling. It persists its
-state and publishes promptly while foreground, with a single latest pending
-snapshot behind an active AppMessage transfer. PKJS uses:
+state and publishes promptly while foreground, with the latest pending
+snapshots serialized behind an active AppMessage transfer. PKJS uses:
 
 ```js
 var bridge = require('pebble-activities/publisher').createPublisher({
@@ -162,7 +162,7 @@ The dictionary names are `ACTIVITY_SCHEMA_VERSION`, `ACTIVITY_RUN`,
 `ACTIVITY_REVISION`, `ACTIVITY_STATE`, `ACTIVITY_KIND`, `ACTIVITY_CLOCK`,
 `ACTIVITY_NAME`, `ACTIVITY_MAIN`, `ACTIVITY_FOOTER`, `ACTIVITY_OBSERVED_AT`,
 `ACTIVITY_VALID_UNTIL`, `ACTIVITY_DEADLINE`, `ACTIVITY_DURATION`,
-`ACTIVITY_CLOCK_AT`, and optional `ACTIVITY_PRIVATE`. States `running` and
+`ACTIVITY_CLOCK_AT`, and optional `ACTIVITY_PRIVATE` and `ACTIVITY_SLOT`. States `running` and
 `finished` are accepted native-dictionary aliases for active and completed.
 The source and wire convention always use the canonical names.
 
@@ -176,16 +176,41 @@ Errors return a content-free `ACTIVITY_ERROR` code. The receipt means accepted
 into shared phone-side state; it is not proof of disk flush, delivery to another
 watchapp or an alarm firing. An AppMessage transport ACK alone is insufficient.
 
-The helper is a single-record publisher stream and requires a source-wide
-monotonic revision, even across successive runs. `bridge.lastRevision()` returns
-the saved floor, including expired state. At native-source startup, the PKJS
-host supplies that floor in its state-resync request. The authoritative native
-owner advances above both local and phone floors before publishing. This lets
-a reinstalled/reset native app recover while rejecting an older run still in
-flight. Public multi-instance providers may implement their own per-run store.
+The helper defaults to one record. Setting `maxRecords` to an integer from 1
+through 8 enables bounded stable host-owned slots. `ACTIVITY_SLOT` is an integer
+from zero through `maxRecords - 1`; `accept(snapshot)` reads the same value from
+`snapshot.slot`. An omitted slot means zero. Invalid limits throw
+`INVALID_RECORD_LIMIT`; an invalid slot returns `INVALID_SLOT` without saving or
+acknowledging it. Slot numbers are bridge metadata, not public source properties
+or part of ACT1.
+Opening a publisher with a smaller limit while higher occupied slots remain
+returns `RECORD_LIMIT_CONFLICT` without writing or acknowledging the snapshot.
+Use the established limit to update or retract those slots first.
 
-This publisher helper refuses private persistent snapshots. A private retraction clears previous public contents and retains only a numeric revision floor, so an older snapshot cannot restore them. Music and
-notification metadata must not be passed through it. The plugin side is
+Each slot owns its latest run. A newer run ID atomically replaces that slot's
+previous run, even if an offline cancellation was not shared first. It does not
+evict another slot's active timer. A run ID cannot occupy two slots
+(`SLOT_CONFLICT`). A terminal run cannot become active again with the same ID;
+restarting requires a new run ID. Existing `{schemaVersion: 1, revision, card}`
+storage is read as slot zero at the same key. Opt-in collection writes use
+`{schemaVersion: 1, revision, slots: [...]}`, with at most eight normalized cards
+or null entries. Default one-record writes retain the legacy envelope.
+
+A **source-wide** monotonic revision is required across all slots and successive
+runs. `bridge.lastRevision()` returns the saved floor, including expired state.
+At native-source startup, PKJS supplies that floor in its state-resync request.
+The authoritative native owner advances above both local and phone floors and
+publishes its records sequentially with distinct revisions. Only an identical
+repeat of the latest stored run/revision can be acknowledged at the same global
+revision. A reinstalled/reset native app can therefore recover while an older
+run still in flight cannot overwrite a newer slot snapshot.
+
+This publisher helper refuses private persistent snapshots. A private retraction
+clears that slot's previous public contents and retains only the source-wide
+numeric revision floor; it saves neither the private identity nor body. Other
+public slots remain available. With the default single record this removes all
+prior public contents, as before. Music and notification metadata must not be
+passed through it. The plugin side is
 read-only, with no native timer-control action hidden in storage writes:
 
 ```js
@@ -196,7 +221,7 @@ var provider = require('pebble-activities/publisher').createProvider({
 Pebble.registerSourceHandler(provider.handleSource);
 ```
 
-A source call cold-starts and reads the saved record. The reference provider always marks saved native snapshots as `unconfirmed`, including after reconnect: it has no way to prove that an offline pause or cancellation in the closed timer app reached the phone. Current plugin availability is not current native state. A new native snapshot updates the last-reported revision, but the cached view remains identified as last-reported. No forever-running plugin
+A source call cold-starts and reads all nonexpired saved slots in numeric slot order. The reference provider always marks saved native snapshots as `unconfirmed`, including after reconnect: it has no way to prove that an offline pause or cancellation in the closed timer app reached the phone. Current plugin availability is not current native state. A new native snapshot updates the last-reported revision, but the cached view remains identified as last-reported. No forever-running plugin
 or timer PKJS session is assumed. The native timer must continue working and
 alerting without the phone. Back remains usable while sharing is pending. If
 an offline native change cannot reach PKJS before the app closes, another app

@@ -2,6 +2,7 @@
 
 var wire=require('./wire');
 var DEFAULT_KEY='pebble.activities.publisher.v1';
+var MAX_RECORDS=8;
 function storageOf(options) {
   var storage=options.storage;
   if(!storage || typeof storage.getItem!=='function' || typeof storage.setItem!=='function') {throw new Error('STORAGE_UNAVAILABLE');}
@@ -11,40 +12,75 @@ function storageOf(options) {
 function loadState(storage,key,provider) {
   try {
     var value=JSON.parse(storage.getItem(key));
-    if(!value || value.schemaVersion!==1) {return {revision:0,card:null};}
-    var card=wire.normalize(value.card,provider);
-    var revision=wire.integer(value.revision,1,wire.MAX_EPOCH)?value.revision:card?card.revision:0;
-    return {revision:revision,card:card};
-  } catch(ignored) {return {revision:0,card:null};}
+    if(!value || value.schemaVersion!==1) {return {revision:0,slots:[]};}
+    var revision=wire.integer(value.revision,1,wire.MAX_EPOCH)?value.revision:0;
+    // Version 0.1.0/0.1.1 stored one card at this same key. Read it as slot 0;
+    // opt-in collection writers migrate it on their next accepted snapshot.
+    var source=Array.isArray(value.slots)?value.slots:[value.card];
+    if(source.length>MAX_RECORDS) {return {revision:revision,slots:[]};}
+    var slots=[],identities=Object.create(null);
+    for(var i=0;i<source.length;i++) {
+      if(source[i]===null || source[i]===undefined) {slots.push(null);continue;}
+      var card=wire.normalize(source[i],provider);
+      if(!card || card.private || identities[card.id]) {return {revision:revision,slots:[]};}
+      identities[card.id]=true;
+      revision=Math.max(revision,card.revision);
+      slots.push(card);
+    }
+    return {revision:revision,slots:slots};
+  } catch(ignored) {return {revision:0,slots:[]};}
 }
-function load(storage,key,provider) {return loadState(storage,key,provider).card;}
 function createPublisher(options) {
   options=options||{};
   var storage=storageOf(options), key=options.key||DEFAULT_KEY;
+  var maxRecords=options.maxRecords===undefined?1:options.maxRecords;
+  if(!wire.integer(maxRecords,1,MAX_RECORDS)) {throw new Error('INVALID_RECORD_LIMIT');}
+  function save(revision,slots) {
+    // Keep the original envelope for default single-record publishers.
+    var value=maxRecords===1?{schemaVersion:1,revision:revision,card:slots[0]||null}:
+      {schemaVersion:1,revision:revision,slots:slots};
+    try {
+      storage.setItem(key,JSON.stringify(value));
+      var read=loadState(storage,key,options.pluginUuid);
+      if(read.revision!==revision || JSON.stringify(read.slots)!==JSON.stringify(slots)) {return false;}
+      return true;
+    } catch(ignored) {return false;}
+  }
   function accept(snapshot) {
     if(!snapshot || snapshot.schemaVersion!==1) {return {ACTIVITY_ERROR:'INVALID_SNAPSHOT'};}
+    var slot=snapshot.slot===undefined?0:snapshot.slot;
+    if(!wire.integer(slot,0,maxRecords-1)) {return {ACTIVITY_ERROR:'INVALID_SLOT'};}
     var card=wire.normalize(snapshot,options.pluginUuid);
     if(!card) {return {ACTIVITY_ERROR:'INVALID_SNAPSHOT'};}
-    var saved=loadState(storage,key,options.pluginUuid),previous=saved.card;
+    var saved=loadState(storage,key,options.pluginUuid),previous=saved.slots[slot];
     if(card.revision<saved.revision) {return {ACTIVITY_ERROR:'STALE_REVISION'};}
-    // A privacy retraction removes earlier public text too. Retain only its
-    // numeric revision floor, never private identity or body, to block replay.
+    // An accidental/default smaller writer must not silently discard another
+    // slot. Reopen with the established limit to update or retract those slots.
+    if(saved.slots.slice(maxRecords).some(function(record){return !!record;})) {
+      return {ACTIVITY_ERROR:'RECORD_LIMIT_CONFLICT'};
+    }
+    var slots=saved.slots.slice(0,maxRecords);
+    while(slots.length<maxRecords) {slots.push(null);}
+    // A stable host-owned slot replaces its prior run atomically. It is not a
+    // second public identity: source consumers still see the card's run ID.
+    // This prevents an offline restart from leaving the predecessor running.
+    for(var at=0;at<slots.length;at++) {
+      if(at!==slot && slots[at] && slots[at].id===card.id) {return {ACTIVITY_ERROR:'SLOT_CONFLICT'};}
+    }
+    // Redact this slot's previous public contents and retain only the global
+    // numeric floor. Never persist the private run identity or body. Other
+    // public slots are independent and stay available.
     if(card.private) {
-      try {storage.setItem(key,JSON.stringify({schemaVersion:1,revision:card.revision,card:null}));
-        var redacted=loadState(storage,key,options.pluginUuid);
-        if(redacted.card || redacted.revision!==card.revision){return {ACTIVITY_ERROR:'STORAGE_FAILED'};}
-      } catch(ignored) {return {ACTIVITY_ERROR:'STORAGE_FAILED'};}
+      slots[slot]=null;
+      if(!save(card.revision,slots)) {return {ACTIVITY_ERROR:'STORAGE_FAILED'};}
       return {ACTIVITY_ERROR:'PRIVATE_PERSISTENCE_DISABLED'};
     }
-    if(!previous && card.revision===saved.revision){return {ACTIVITY_ERROR:'REVISION_CONFLICT'};}
     if(previous && previous.id===card.id && (previous.state==='completed'||previous.state==='cancelled') && card.state!=='completed' && card.state!=='cancelled'){return {ACTIVITY_ERROR:'TERMINAL_RUN'};}
     var serialized=JSON.stringify(card);
-    if(previous && card.revision===previous.revision && JSON.stringify(previous)!==serialized) {return {ACTIVITY_ERROR:'REVISION_CONFLICT'};}
-    try {
-      storage.setItem(key,JSON.stringify({schemaVersion:1,revision:card.revision,card:card}));
-      var read=load(storage,key,options.pluginUuid);
-      if(!read || JSON.stringify(read)!==serialized) {return {ACTIVITY_ERROR:'STORAGE_FAILED'};}
-    } catch(ignored) {return {ACTIVITY_ERROR:'STORAGE_FAILED'};}
+    if(card.revision===saved.revision && (!previous || previous.revision!==card.revision ||
+        JSON.stringify(previous)!==serialized)) {return {ACTIVITY_ERROR:'REVISION_CONFLICT'};}
+    slots[slot]=card;
+    if(!save(card.revision,slots)) {return {ACTIVITY_ERROR:'STORAGE_FAILED'};}
     return {ACTIVITY_ACCEPTED_RUN:card.id,ACTIVITY_ACCEPTED_REVISION:card.revision};
   }
   function handleMessage(payload) {
@@ -59,7 +95,8 @@ function createPublisher(options) {
       state:state,kind:payload.ACTIVITY_KIND,clock:payload.ACTIVITY_CLOCK,name:payload.ACTIVITY_NAME,
       main:payload.ACTIVITY_MAIN,footer:payload.ACTIVITY_FOOTER,observedAt:payload.ACTIVITY_OBSERVED_AT,
       validUntil:payload.ACTIVITY_VALID_UNTIL,deadline:payload.ACTIVITY_DEADLINE,duration:payload.ACTIVITY_DURATION,
-      clockAt:payload.ACTIVITY_CLOCK_AT,private:privacy===undefined ? options.private!==false : privacy===true || privacy===1}):{ACTIVITY_ERROR:'INVALID_SNAPSHOT'};
+      clockAt:payload.ACTIVITY_CLOCK_AT,private:privacy===undefined ? options.private!==false : privacy===true || privacy===1,
+      slot:payload.ACTIVITY_SLOT}):{ACTIVITY_ERROR:'INVALID_SNAPSHOT'};
     if(wire.integer(payload.ACTIVITY_PUBLISH_SESSION,1,wire.MAX_EPOCH)){receipt.ACTIVITY_PUBLISH_SESSION=payload.ACTIVITY_PUBLISH_SESSION;}
     return receipt;
   }
@@ -85,8 +122,10 @@ function createProvider(options) {
   options=options||{};
   var storage=storageOf(options),key=options.key||DEFAULT_KEY,now=options.now||Date.now;
   function source(request) {
-    var nowMs=now(),card=load(storage,key,options.pluginUuid),instances=[];
-    if(card && card.validUntil*1000>nowMs) {instances.push({instanceId:card.id,properties:properties(card,request)});}
+    var nowMs=now(),slots=loadState(storage,key,options.pluginUuid).slots,instances=[];
+    slots.forEach(function(card) {
+      if(card && card.validUntil*1000>nowMs) {instances.push({instanceId:card.id,properties:properties(card,request)});}
+    });
     return {validUntilMs:Math.floor(nowMs+30000),instances:instances};
   }
   function handleSource(request,respond) {
@@ -98,4 +137,4 @@ function createProvider(options) {
   }
   return {source:source,handleSource:handleSource};
 }
-module.exports={DEFAULT_KEY:DEFAULT_KEY,createPublisher:createPublisher,createProvider:createProvider};
+module.exports={DEFAULT_KEY:DEFAULT_KEY,MAX_RECORDS:MAX_RECORDS,createPublisher:createPublisher,createProvider:createProvider};

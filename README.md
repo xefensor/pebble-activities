@@ -4,15 +4,26 @@ Shared publishing and consuming helpers for ongoing activities on **stock
 PebbleOS**. A compatible provider can expose a timer, elapsed session or formatted
 reading without adding a layout for that particular app to every watchface.
 
-Version 0.1.1 is a library-only prerelease. The initial native target is Emery
+Version 0.1.2 adds bounded multi-instance publishing. The initial native target is Emery
 (Pebble Time 2). Hardware and real-phone checks are recorded separately from
 portable tests and emulator results in [validation](docs/VALIDATION.md).
 
-Download the [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.1/pebble-activities-0.1.1.tgz)
-or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.1/dist.zip).
-Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.1.1/SHA256SUMS.txt).
+Download the [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/pebble-activities-0.1.2.tgz)
+or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/dist.zip).
+Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/SHA256SUMS.txt).
 Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
 native countdowns to a compatible watchface.
+
+## Version 0.1.2
+
+- Publishers may opt into up to eight stable host-owned slots, with independent
+  timer runs exposed through the existing multi-instance source convention.
+- A new run atomically replaces the prior run in its slot, including after an
+  offline restart; unrelated timers are preserved.
+- Existing single-record storage migrates to slot zero without changing its
+  namespace. Default single-record publisher behavior remains compatible.
+- Receipts still require write/readback, a source-wide revision floor and exact
+  run/revision/ticket matching. Public source properties and ACT1 are unchanged.
 
 ## Version 0.1.1
 
@@ -67,7 +78,7 @@ Reaching zero locally does not prove that the originating app completed or rang.
 var activities = require('pebble-activities');
 ```
 
-- `createPublisher` accepts a versioned native snapshot, validates revisions,
+- `createPublisher` accepts a versioned native snapshot and an optional stable slot, validates revisions,
   writes and reads back phone-side shared state, and returns an application receipt.
 - `createProvider` exposes the saved state through an independently callable plugin.
 - `createActivities` discovers compatible providers and supplies a bounded native
@@ -86,6 +97,21 @@ Native consumers include:
 The decoder and state functions register no SDK services. Call them from the
 host's existing lifecycle. The specification and the standalone Timer repository document the
 exact properties, receipt keys, session handshake and failure cases.
+
+### Multiple native timers
+
+A provider that owns several independent records uses
+`createPublisher({storage: localStorage, pluginUuid: UUID, maxRecords: 8})`.
+Include `ACTIVITY_SLOT` (0–7) in each native snapshot, or `slot` when calling
+`accept` directly. The host owns those stable slots; run IDs remain the public
+identity. A new run replaces only the previous run in the same slot. Missing
+slot means zero, preserving the original single-record path.
+
+Each accepted update advances a **source-wide** revision, even when updating
+another slot. A native resync obtains `lastRevision()` and republishes its slots
+with distinct higher revisions. The read-only provider loads all slots without
+an extra option. A consumer may still project only its best two activities to
+the watch; the host chooses that presentation policy.
 
 ## Boundaries
 

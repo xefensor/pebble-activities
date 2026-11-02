@@ -1,5 +1,20 @@
 # Validation
 
+## 0.1.2 bounded multi-record publishing
+
+- 102 JavaScript tests and the strict native C decode/state/clock/publisher suite
+  pass. Eleven new publisher cases cover eight independent slots, legacy migration,
+  cold reload, independent pause/cancel/expiry, offline slot reuse, revision and
+  terminal replay rejection, bounds, capacity-reduction rejection, write/readback
+  failures and privacy redaction.
+- The 23 release/packaging regression tests pass.
+- The SDK package builds with the installed official SDK 4.33.1 for Emery.
+- Public `activity/session` properties and ACT1 are unchanged. The native wire
+  still projects at most two activities; providers may expose up to eight saved
+  records, and consuming hosts select the appropriate projection.
+- This library change has no new real-phone, physical-watch or emulator result.
+  Consumer and Timer integration checks belong to their release evidence.
+
 ## 0.1.1 standalone-library packaging
 
 Timer now lives in [pebble-app-timer](https://github.com/xefensor/pebble-app-timer).
