@@ -1,0 +1,13 @@
+node_modules/
+build/
+.pebble/
+__pycache__/
+*.pyc
+.waf*
+.lock-waf*
+dist/
+examples/*/node_modules/
+examples/*/build/
+examples/*/.pebble/
+examples/*/dist/
+

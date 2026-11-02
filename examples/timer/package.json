@@ -1,0 +1,75 @@
+{
+  "name": "activity-timer",
+  "version": "0.1.0",
+  "author": "Xef",
+  "private": true,
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "description": "Stock PebbleOS reference timer with a read-only activity plugin.",
+  "dependencies": {
+    "pebble-activities": "file:../.."
+  },
+  "scripts": {
+    "test": "python3 scripts/test.py"
+  },
+  "pebble": {
+    "displayName": "Activity Timer",
+    "uuid": "50e9ef12-a5ab-4369-a3b5-3447bfba5151",
+    "sdkVersion": "3",
+    "projectType": "native",
+    "targetPlatforms": ["emery"],
+    "enableMultiJS": true,
+    "watchapp": {"watchface": false},
+    "resources": {"media": []},
+    "usesPermissions": [],
+    "messageKeys": {
+      "ACTIVITY_SCHEMA_VERSION": 1000,
+      "ACTIVITY_RUN": 1001,
+      "ACTIVITY_REVISION": 1002,
+      "ACTIVITY_STATE": 1003,
+      "ACTIVITY_KIND": 1004,
+      "ACTIVITY_CLOCK": 1005,
+      "ACTIVITY_NAME": 1006,
+      "ACTIVITY_MAIN": 1007,
+      "ACTIVITY_FOOTER": 1008,
+      "ACTIVITY_OBSERVED_AT": 1009,
+      "ACTIVITY_VALID_UNTIL": 1010,
+      "ACTIVITY_DEADLINE": 1011,
+      "ACTIVITY_DURATION": 1012,
+      "ACTIVITY_CLOCK_AT": 1013,
+      "ACTIVITY_ACCEPTED_RUN": 1014,
+      "ACTIVITY_ACCEPTED_REVISION": 1015,
+      "ACTIVITY_ERROR": 1016,
+      "ACTIVITY_REQUEST": 1017,
+      "ACTIVITY_PRIVATE": 1018,
+      "ACTIVITY_LAST_REVISION": 1019,
+      "ACTIVITY_PUBLISH_SESSION": 1020
+    },
+    "plugin": {
+      "description": "The latest state reported by this watch's reference timer. The native timer owns its alarm; this source only shares state.",
+      "script": "plugin.js",
+      "sources": [{
+        "category": "activity",
+        "items": ["session"],
+        "supportsMultiple": true,
+        "suggestedRefreshIntervalSec": 30,
+        "properties": {
+          "schema_version": ["numericValue"],
+          "kind": ["shortText"],
+          "state": ["shortText"],
+          "clock": ["shortText"],
+          "revision": ["numericValue"],
+          "name": ["longText"],
+          "main": ["longText"],
+          "footer": ["longText"],
+          "observed_at": ["timestamp"],
+          "valid_until": ["timestamp"],
+          "deadline": ["timestamp"],
+          "duration": ["numericValue"],
+          "clock_at": ["timestamp"],
+          "private": ["boolean"],
+          "unconfirmed": ["boolean"]
+        }
+      }]
+    }
+  }
+}

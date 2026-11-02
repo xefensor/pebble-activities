@@ -1,0 +1,73 @@
+{
+  "version": "0.1.0",
+  "sdk": "4.33.1",
+  "emulated_firmware": "4.33.2",
+  "platform": "emery",
+  "scope": "QEMU native watch + pypkjs simulated phone; no physical watch or real mobile app tested",
+  "checks": {
+    "native-publisher-application-receipt": true,
+    "timer-pkjs-to-shared-store-to-cold-plugin-to-dynamic": true,
+    "paused-value-persists-after-normal-button-roundtrip": true,
+    "cancellation-removes-timer-and-restores-music": true
+  },
+  "images": [
+    {
+      "file": "timer-ready.png",
+      "sha256": "c2ab214610b775cf283acbd73455c660a4476a9b9dcd86cb6e00249bc87de6a8",
+      "native_pixels_modified": false,
+      "size": [
+        200,
+        228
+      ]
+    },
+    {
+      "file": "timer-running.png",
+      "sha256": "1b9a1864d0603e899bb21bf640458802d9b9a283f15ffc1c42e69bc8889f0494",
+      "native_pixels_modified": false,
+      "size": [
+        200,
+        228
+      ]
+    },
+    {
+      "file": "dynamic-running.png",
+      "sha256": "184b0e23c855be5b291764f62f1e5f950a78e7afc7b09030bdfc2e495317a06d",
+      "native_pixels_modified": false,
+      "size": [
+        200,
+        228
+      ]
+    },
+    {
+      "file": "timer-paused.png",
+      "sha256": "78354771ebefd2c811ceaeca37c0dcc333dd788c5ec5b9461b3320fd2085eb19",
+      "native_pixels_modified": false,
+      "size": [
+        200,
+        228
+      ]
+    },
+    {
+      "file": "dynamic-paused.png",
+      "sha256": "d167326dd5c2c6d656b76e7668b658d62138c5dff6b5988562d619b14bc4af65",
+      "native_pixels_modified": false,
+      "size": [
+        200,
+        228
+      ]
+    },
+    {
+      "file": "dynamic-after-cancel.png",
+      "sha256": "70fb91f4f3f7e34893238cd6319537c917fdc80989397951193163d16ac1923d",
+      "native_pixels_modified": false,
+      "size": [
+        200,
+        228
+      ]
+    }
+  ],
+  "limitations": [
+    "A system watchdog dialog occurred during repeated forced developer AppRunState launch commands. Normal button navigation roundtrips subsequently passed. Forced-launch stress remains uncertified.",
+    "Physical vibration, real-phone delivery and battery use remain unverified."
+  ]
+}

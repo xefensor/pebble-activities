@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "session": 42,
+  "revision": 1,
+  "sentAt": 1700000001,
+  "cases": {
+    "timer-active": [
+      {
+        "provider": "c9e7cb18-eaf7-4b30-9b09-9a8fae187801",
+        "id": "timer:7",
+        "kind": "timer",
+        "state": "active",
+        "clock": "deadline",
+        "revision": 7,
+        "observedAt": 1700000000,
+        "validUntil": 1700000630,
+        "deadline": 1700000600,
+        "duration": 0,
+        "clockAt": 0,
+        "main": "",
+        "footer": "Pasta",
+        "private": false
+      }
+    ],
+    "timer-paused": [
+      {
+        "provider": "c9e7cb18-eaf7-4b30-9b09-9a8fae187801",
+        "id": "timer:7",
+        "kind": "timer",
+        "state": "paused",
+        "clock": "deadline",
+        "revision": 8,
+        "observedAt": 1700000120,
+        "validUntil": 1700086520,
+        "deadline": 0,
+        "duration": 480,
+        "clockAt": 0,
+        "main": "",
+        "footer": "Pasta",
+        "private": false
+      }
+    ],
+    "mixed": [
+      {
+        "provider": "c9e7cb18-eaf7-4b30-9b09-9a8fae187801",
+        "id": "timer:7",
+        "kind": "timer",
+        "state": "active",
+        "clock": "deadline",
+        "revision": 7,
+        "observedAt": 1700000000,
+        "validUntil": 1700000630,
+        "deadline": 1700000600,
+        "duration": 0,
+        "clockAt": 0,
+        "main": "",
+        "footer": "Pasta",
+        "private": false
+      },
+      {
+        "provider": "c9e7cb18-eaf7-4b30-9b09-9a8fae187802",
+        "id": "reading:1",
+        "kind": "glucose",
+        "state": "active",
+        "clock": "none",
+        "revision": 1,
+        "observedAt": 1700000000,
+        "validUntil": 1700000300,
+        "main": "6.2 mmol/L",
+        "footer": "Glucose",
+        "value": 6.2,
+        "unit": "mmol/L",
+        "private": true,
+        "image": {
+          "width": 3,
+          "height": 1,
+          "palette": [
+            192,
+            255
+          ],
+          "pixels": [
+            1,
+            16
+          ]
+        }
+      }
+    ],
+    "empty": []
+  }
+}

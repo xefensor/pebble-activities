@@ -1,0 +1,31 @@
+{
+  "scope": "Clean Emery QEMU4.33.2 withSDK4.33.1; diagnosticbuild adds logging only; Bluetoothdisconnected afterstarting andbeforeleaving app. No actions atdeadline.",
+  "diagnostic_pbw_sha256": "b9067eb61ee85bfa497fae39e780996c3863e4e5ae8be7a8a08b2538d82b3d99",
+  "scheduled_at": 1793622171,
+  "deadline": 1793622231,
+  "left_app_at": 1793622172,
+  "query_still_scheduled_on_exit": true,
+  "wakeup_id": 1793622137,
+  "cold_launch_at": 1793622231,
+  "launch_reason": 3,
+  "launch_reason_name": "APP_LAUNCH_WAKEUP",
+  "launch_event_matches": true,
+  "completed_at": 1793622231,
+  "phone_disconnected": true,
+  "physical_vibration_measured": false,
+  "release_pbw_repeat": {
+    "passed": true,
+    "pbw_sha256": "8e1cef05620f3278ab1b5efae65433114cc628d18a0078148fc394e2b0e7adff",
+    "native_observed_at": 1793622749,
+    "deadline": 1793622809,
+    "left_at": 1793622751,
+    "completed_ui_observed_at": 1793622832,
+    "phone_disconnected": true,
+    "manual_launch_after_leaving": false,
+    "screen": "release-alarm-completed.png",
+    "change": "Production init explicitly handles matching cold Wakeup before restore. No cause is attributed to getter side effects."
+  },
+  "earlier_normal_repeat": {
+    "result": "App context was Running with APP_LAUNCH_WAKEUP but screenshot was white; final normal PBW repeated successfully after explicit cold-launch handling. Prior bytes were never published."
+  }
+}
