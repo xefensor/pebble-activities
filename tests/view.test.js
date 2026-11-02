@@ -91,6 +91,17 @@ test('v2 consumer prefers the card source exactly once and v1 stays on session',
   f.data(source(card()));assert.equal(f.packet()[4],2);assert.equal(f.consumer.catalogue()[0].main.type,'clock');
   const old=fixture({nativeFormat:1});old.consumer.refresh(true,42);assert.equal(old.subs[0].request.item,'session');assert.equal(old.packet()[4],1);
 });
+test('provider metadata includes installed idle and disabled apps and never changes source fingerprints',()=>{
+  const p=Object.assign(plugin(),{name:'Workout\u202e App'}),settings={disabledProviders:[P]};
+  const f=fixture({plugins:[p],getSettings:()=>settings});f.consumer.refresh(true,42);
+  assert.deepEqual(f.consumer.providers(),[{uuid:P,name:'Workout App',item:'card',available:true}]);
+  assert.equal(f.subs.length,0);settings.disabledProviders=[];f.consumer.configure();f.data(source(card()));
+  assert.equal(f.consumer.catalogue()[0].providerName,'Workout App');
+  p.name='Renamed App';f.consumer.refresh();f.data(source(card()));
+  assert.equal(f.consumer.catalogue()[0].providerName,'Renamed App');
+  assert.equal(f.consumer.catalogue()[0].revision,1);assert.equal(f.consumer.status().error,'');
+  const metadata=f.consumer.providers();metadata[0].name='Changed copy';assert.equal(f.consumer.providers()[0].name,'Renamed App');
+});
 test('v2 consumer adapts an existing session provider without requiring a provider upgrade',()=>{
   const f=fixture({plugins:[plugin(['session'])]});f.consumer.refresh(true,42);assert.equal(f.subs[0].request.item,'session');
   const store=storage();lib.createPublisher({storage:store,pluginUuid:P}).accept(legacy());

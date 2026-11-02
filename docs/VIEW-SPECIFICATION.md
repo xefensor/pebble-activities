@@ -53,6 +53,88 @@ default consumer still uses schema 1 and ACT1.
 The helpers are independent of Dynamic. Its phone host keeps its own selection
 policy; another app can use a different bounded selection and native layout.
 
+### Provider identity and host ordering (0.2.2)
+
+`consumer.providers()` returns a copied installed-provider catalogue of
+`{uuid, name, item, available}` entries, including compatible apps which are idle
+or disabled by the host. `uuid` is validated; `item` is the selected compatible
+source. `name` is bounded, sanitized display metadata from the SDK enumeration's
+`plugin.name`, as used by the official
+[plugin-test application](https://github.com/coredevices/pebble-apps/blob/main/plugin-test/src/pkjs/index.js).
+An empty name is permitted. Availability here means present in the latest valid
+enumeration, not permission granted, a live activity or fresh source content;
+`status()` continues to report subscription health. A successful enumeration
+replaces the catalogue, so removed providers disappear. No private source data
+enters this catalogue.
+
+Canonical cards passed to the host selection callback include `providerName`
+when enumeration supplies it. This is host metadata attached after source
+validation. It is excluded from source fingerprints, revision immutability and
+native encoding. Renaming an app can change its presentation without changing
+the activity's source revision. A host must never use a display name to establish
+provider identity, deduplicate unrelated sources or infer lifecycle.
+
+`activities.selection.select(cards, {order, hidden, limit})` is an optional pure
+helper. `normalizePreferences(value)` sanitizes its `order` and `hidden` arrays;
+`providerKey(card)` exposes the corresponding stable preference key. The helper
+persists nothing and returns original card references. Keys are validated UUIDs,
+plus the reserved host-adapter key `builtin:music` described below. Unknown keys
+cannot introduce content. Duplicate/invalid keys are removed and each preference
+array is bounded to 64 entries. `limit` is zero, one or two (default two).
+
+Ongoing records precede explicitly visible terminal results. Explicit provider
+order then applies; unlisted providers retain the input's stable fallback order.
+Within a provider, active countdowns are ordered by their absolute deadline,
+followed by paused countdowns by remaining duration, in that provider's existing
+countdown positions. Other providers and non-clock items retain their positions.
+The helper does not impose a global provider-kind priority. A watchface, Dashboard
+or another host chooses its default order and whether to offer settings. Save
+only stable provider keys, never current track names, run IDs or private cards.
+
+A host may project a **copy** into existing ACT2 caption/artwork fields after
+source validation, for example a bounded app name and a recognizable icon for
+each displayed activity role. Source `kind` remains an open string; a host can
+use known explicit kinds for fallback symbols and use a neutral symbol/name for
+unknown kinds. Countdown shape does not prove a timer, and free text does not
+prove music. Keep role labels such as `Rest`/`ETA`, essential main values/units,
+per-item observation/provenance, privacy and lifecycle intact. Supporting content
+may be omitted when necessary for the existing 320-byte string pool; if its meter
+is omitted, remove the corresponding meter too. Never repurpose reserved packet
+bytes or change source truth to fit a layout. This requires no ACT2 ABI change.
+
+### Optional legacy Music activity bridge
+
+`createContext` preserves its existing subscriptions, notice baseline/privacy,
+transport and defaults. It adds optional `onChanged()` notification and
+`musicActivity()`, which returns a copied canonical private ACT2 card or `null`.
+The card comes only from a fresh validated native Music source record, retains
+the original receipt observation/lease, and never refreshes on accessor calls,
+reprojection or unrelated phone/notification updates. A real SDK `pluginUuid`,
+when supplied, must be a valid UUID and remains the native provider identity.
+Older envelopes lacking it use the explicit host-adapter namespace
+`718089b7-d9d4-4d6b-81c0-915dcd4c7e4a`; this never claims an unknown real provider.
+An invalid supplied UUID disables canonical adaptation for that delivery.
+
+The bridge assigns transient run/revision IDs: a track/provider change starts a
+new adapter run, authoritative source callbacks advance its revision, and polling
+does neither. `selectionKey: 'builtin:music'` is host-only preference metadata;
+it must never replace the canonical UUID in the wire record. `musicProvider()`
+returns content-free metadata for a currently available bridge. Title, artist
+and artwork exist only in transient memory and native delivery. Pause grace,
+expiry, source removal/redaction/error, disconnect, disable and stop clear the
+accessor. Bitmap rows are converted to ACT2's tightly packed format.
+
+Hosts migrating Music into their activity roles can opt into
+`musicAsActivity: true`. While a valid bridge exists, the old context packet's
+Music title/artwork and artist slots are empty; notifications and phone status
+are unchanged. This prevents a host-hidden Music card reappearing in a fixed
+compatibility footer. The default remains the existing context packet. Connect
+`onChanged` to the host's `activities.reproject()` and merge `musicActivity()`
+before selection, so source changes and expiry retract either activity role.
+The host must continue sending the activity transport even if it hides other
+plugins. Deduplicate dual-convention Music only by verified source identity,
+never by comparing track text.
+
 ## Item and lifecycle rules
 
 An item supplies `type`, a nonempty `label`, observation/validity (defaulting to

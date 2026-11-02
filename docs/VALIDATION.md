@@ -1,5 +1,27 @@
 # Validation
 
+## 0.2.2 provider selection and transient music bridge — 3 November 2026
+
+Portable checks pass: **129 JavaScript tests, two strict native C suites and
+23 Python release-helper tests**. The SDK 4.33.1 Emery library build passes.
+The new selector covers provider order, hidden/unknown providers, terminal
+fallback, stable equal deadlines and independently running timers. Installed
+idle providers retain validated UUIDs and friendly metadata outside source
+fingerprints. The metadata name field is verified against the official
+plugin-test example linked in the view specification.
+
+The opt-in music bridge covers source UUID validation, callback-owned revisions,
+unchanged observation/expiry on repeated projection, pause/expiry, disconnection
+and opt-out. Default music and notification adapter tests remain enabled,
+including notification baseline/privacy and malformed-source behavior. Private
+music is transient and never enters settings or cache storage. ACT1/ACT2 formats
+and native library sources are unchanged. The bounded selector owns no storage;
+Dynamic keeps its own provider preferences.
+
+Dynamic records its own renderer and real-Clay integration evidence. These
+library checks do not claim a physical-watch or real-phone transport result.
+Published 0.2.1 and earlier release bytes and tags remain unchanged.
+
 ## 0.2.1 acknowledged results and compact Timer projection
 
 Published as a GitHub development prerelease from

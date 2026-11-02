@@ -12,16 +12,33 @@ portable tests and emulator results in [validation](docs/VALIDATION.md).
 Version 0.2.1 adds acknowledged completion visibility and an explicit compact
 Timer projection while preserving the generic activity convention.
 
-The current [GitHub development prerelease is 0.2.1](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.1).
-Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.1/pebble-activities-0.2.1.tgz)
-or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.1/dist.zip).
-Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.2.1/SHA256SUMS.txt).
+Version 0.2.2 adds reusable provider ordering, installed-provider metadata and an
+optional transient music bridge for hosts that want one activity list.
+
+The current [GitHub development prerelease is 0.2.2](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.2).
+Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.2/pebble-activities-0.2.2.tgz)
+or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.2.2/dist.zip).
+Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.2.2/SHA256SUMS.txt).
+The [previous 0.2.1 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.1)
+remains available unchanged.
 The [previous 0.2.0 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.2.0)
 remains available unchanged.
 The [published 0.1.2 release](https://github.com/xefensor/pebble-activities/releases/tag/v0.1.2)
 remains available unchanged.
 Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
 native countdowns to a compatible watchface.
+
+## Version 0.2.2
+
+- Expose compatible installed provider identities even while idle, with display
+  metadata kept outside authoritative source fingerprints.
+- Share a pure provider-order selector. Hosts own their settings and storage;
+  the library does not install a settings service or impose a global order.
+- Offer an opt-in canonical music card from the existing adapter. Music stays
+  transient, uses the SDK source UUID, retains observation and expiry, and clears
+  when disconnected or disabled. Polling never renews its source observation.
+- Preserve default adapter behavior, ACT1/ACT2 layouts, source revision rules,
+  notification privacy and existing provider compatibility.
 
 ## Version 0.2.1
 

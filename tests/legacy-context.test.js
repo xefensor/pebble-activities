@@ -51,6 +51,8 @@ function fixture(overrides={}) {
     log(){throw new Error('No private-content logging');},
     send:(payload,success,failure)=>{deliveries.push(payload);callbacks.push({success,failure});if(!hold)success();}
   };
+  if(overrides.onChanged) options.onChanged=overrides.onChanged;
+  if(overrides.musicAsActivity) options.musicAsActivity=true;
   if(overrides.queue) options.send=createQueue({send:options.send,keys:options.keys,later:options.later,cancelLater:options.cancelLater});
   const client=createContext(options);
   function latest(name) {
@@ -90,6 +92,30 @@ test('Playing music has a two-minute receipt lease and independent title/artist 
   assert.equal(f.packet()[1].validUntil,f.packet()[0].validUntil);
   assert.equal(f.client.status().music,true);
   assert.ok(!JSON.stringify(f.client.status()).includes('Genesis'));
+});
+test('Music activity is ephemeral, UUID-bound, immutable on polling and cleared with its private source',()=>{
+  let changed=0;const f=fixture({onChanged:()=>changed++});f.client.refresh();
+  const provider='c9e7cb18-eaf7-4b30-9b09-9a8fae187801';f.source('music',Object.assign(music(),{pluginUuid:provider}));
+  const first=f.client.musicActivity();assert.ok(first);assert.equal(first.provider,provider);assert.equal(first.selectionKey,'builtin:music');
+  assert.equal(first.private,true);assert.equal(first.main.text,'Genesis');assert.equal(first.support.text,'Justice');assert.equal(first.main.retain,false);
+  f.advance(10000);assert.deepEqual(f.client.musicActivity(),first);assert.ok(changed>=2);
+  first.main.text='Mutated';assert.equal(f.client.musicActivity().main.text,'Genesis');
+  f.source('music',Object.assign(music(),{pluginUuid:provider}));const renewed=f.client.musicActivity();
+  assert.equal(renewed.id,first.id);assert.ok(renewed.revision>first.revision);assert.equal(renewed.observedAt,NOW/1000+10);
+  f.source('music',Object.assign(music(true,'Next track'),{pluginUuid:provider}));assert.notEqual(f.client.musicActivity().id,first.id);
+  f.error('music','PERMISSION_DENIED');assert.equal(f.client.musicActivity(),null);
+  f.source('music',music());assert.ok(f.client.musicActivity());f.client.connectionChanged(false);assert.equal(f.client.musicActivity(),null);
+});
+test('Music bridge preserves compact artwork and pause expiry and opt-in suppresses its legacy fallback',()=>{
+  const f=fixture({musicAsActivity:true});f.client.refresh();
+  f.source('music',music(true,'Title','Artist',{artwork:{icon:{width:3,height:1,palette:Buffer.from([192,255]).toString('base64'),pixels:Buffer.from([0x10,0x10]).toString('base64')}}}));
+  const card=f.client.musicActivity();assert.deepEqual(card.image.pixels,[0x10,0x10]);
+  assert.deepEqual(f.packet().slice(0,2).map(x=>x.status),[0,0]);
+  f.source('music',music(false));assert.equal(f.client.musicActivity().state,'paused');f.tick(5000);assert.equal(f.client.musicActivity(),null);
+  f.source('music',Object.assign(music(),{pluginUuid:'invalid'}));assert.equal(f.client.musicActivity(),null);
+  // Existing context remains available if a malformed UUID prevents adaptation.
+  assert.equal(f.packet()[0].text,'Genesis');
+  f.source('music',music());f.settings.showMusic=false;f.client.configure();assert.equal(f.client.musicActivity(),null);
 });
 
 test('Initially paused music stays hidden; a playing track gets one non-renewable five-second pause grace',()=>{

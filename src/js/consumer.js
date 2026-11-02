@@ -36,7 +36,7 @@ module.exports=function createActivities(options) {
   var keys=options.keys||{}, send=options.send, groups=Object.create(null), session=0, sequence=0, generation=0;
   var stopped=false,connected=true,enabled=true,available=typeof pebble.enumeratePlugins==='function' && typeof pebble.subscribeToSource==='function';
   var expiryTimer=null,discoveryTimer=null,retryTimer=null,bootTimer=null,lastError='',bootRequested=false,bootAttempts=0,failureCount=0,seenOrder=0,enumerated=false;
-  var revisions=Object.create(null), orders=Object.create(null), lastSignature='',currentSettings={};
+  var revisions=Object.create(null), orders=Object.create(null), lastSignature='',currentSettings={},installed=[];
   function seconds(){return Math.max(1,Math.floor(now()/1000));}
   function key(name){return keys[name]===undefined?name:keys[name];}
   function readSettings(){var s=typeof options.getSettings==='function'?options.getSettings():{};return s&&typeof s==='object'?s:{};}
@@ -51,7 +51,7 @@ module.exports=function createActivities(options) {
   function cleanGroup(provider){var group=groups[provider];if(!group){return;}stopGroup(group);group.cards=[];delete groups[provider];}
   function catalogue(){
     var t=seconds(), result=[];
-    Object.keys(groups).forEach(function(provider){groups[provider].cards.forEach(function(card){if(visible(card,t)&&accepted(card)){result.push(card);}});});
+    Object.keys(groups).forEach(function(provider){groups[provider].cards.forEach(function(card){if(visible(card,t)&&accepted(card)){var copy=clone(card),metadata=installed.filter(function(p){return p.uuid===provider;})[0];if(metadata&&metadata.name){copy.providerName=metadata.name;}result.push(copy);}});});
     result.sort(function(a,b){return orders[a.provider+'|'+a.id]-orders[b.provider+'|'+b.id];});
     return result;
   }
@@ -162,8 +162,14 @@ module.exports=function createActivities(options) {
     function apply(plugins){
       if(run!==generation||stopped||!connected||!enabled){return;}
       if(!Array.isArray(plugins)){lastError='INVALID_CATALOGUE';Object.keys(groups).forEach(cleanGroup);publish();return;}
-      var items=Object.create(null);
-      var providers=plugins.filter(function(p){return compatible(p,nativeFormat);}).filter(function(p){return allowed(p.uuid);}).map(function(p){items[p.uuid]=sourceItem(p,nativeFormat);return p.uuid;}).sort().filter(function(v,i,a){return i===0||a[i-1]!==v;}).slice(0,wire.LIMITS.providers);
+      var items=Object.create(null),metadata=Object.create(null);
+      plugins.filter(function(p){return compatible(p,nativeFormat);}).forEach(function(p){
+        // The official plugin-test app reads enumeratePlugins().name. Treat it
+        // as untrusted display metadata, never as source/revision identity.
+        if(!metadata[p.uuid]){metadata[p.uuid]={uuid:p.uuid,name:wire.text(p.name,64),item:sourceItem(p,nativeFormat),available:true};}
+      });
+      installed=Object.keys(metadata).sort().slice(0,wire.LIMITS.providers).map(function(uuid){return metadata[uuid];});
+      var providers=installed.filter(function(p){return allowed(p.uuid);}).map(function(p){items[p.uuid]=p.item;return p.uuid;});
       enumerated=true;
       Object.keys(groups).forEach(function(provider){if(providers.indexOf(provider)<0){cleanGroup(provider);}});
       providers.forEach(function(provider){if(rebind||!groups[provider]||groups[provider].item!==items[provider]){bind(provider,items[provider]);}});
@@ -200,6 +206,7 @@ module.exports=function createActivities(options) {
     else{refresh(true,token);}
   }
   return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,reproject:function(){publish(true);},
+    providers:function(){return clone(installed);},
     catalogue:function(){return clone(catalogue());},
     status:function(){var providers=Object.keys(groups).map(function(provider){var group=groups[provider];return {pluginUuid:provider,state:group.error?'unavailable':group.ready?'ready':'waiting',error:group.error,receivedAt:group.receivedAt};});var count=catalogue().length,complete=enumerated&&Object.keys(groups).every(function(provider){return groups[provider].settled;});var ready=enabled&&available&&connected&&enumerated&&providers.every(function(p){return p.state==='ready';});return {available:available,connected:connected,enabled:enabled,ready:ready,complete:complete,phase:ready?'ready':count?'partial':complete||lastError||!connected||!available?'unavailable':'loading',error:lastError||providers.map(function(p){return p.error;}).filter(Boolean)[0]||'',providers:providers,count:count};},
     stop:function(){stopped=true;generation++;Object.keys(groups).forEach(cleanGroup);[expiryTimer,discoveryTimer,retryTimer,bootTimer].forEach(function(timer){if(timer!==null){cancel(timer);}});expiryTimer=discoveryTimer=retryTimer=bootTimer=null;revisions=Object.create(null);orders=Object.create(null);}}

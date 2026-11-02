@@ -1,6 +1,10 @@
 'use strict';
 
 var wire = require('./complication-data');
+var activityWire = require('../../wire');
+var activityView = require('../../view');
+// Namespace of this host adapter only; never claim an unknown SDK provider UUID.
+var MUSIC_ADAPTER_UUID = '718089b7-d9d4-4d6b-81c0-915dcd4c7e4a';
 var KIND = wire.SEMANTIC_KIND;
 var SOURCE = wire.SOURCE_KIND;
 var LEASE = 120;
@@ -117,6 +121,7 @@ module.exports = function createContext(options) {
   var records=[null,null,null,null,null];
   var playing=false;
   var pausedUntil=0;
+  var musicCard=null, musicRun=0, musicRevision=0, musicIdentity='';
   var baseline=false;
   var notificationIds=Object.create(null);
   var activeNotice=null;
@@ -164,7 +169,7 @@ module.exports = function createContext(options) {
     if (noticeUpdateTimer !== null) { options.cancelLater(noticeUpdateTimer); noticeUpdateTimer=null; }
   }
   function clearGroup(name) {
-    if (name === 'music') { records[0]=records[1]=null; playing=false; pausedUntil=0; }
+    if (name === 'music') { records[0]=records[1]=null; playing=false; pausedUntil=0; musicCard=null; musicIdentity=''; }
     else if (name === 'phone') { records[4]=null; }
     else { clearNotice(); baseline=false; notificationIds=Object.create(null); noticeWindowEnd=lastNoticeAt=noticeBurst=0; }
   }
@@ -189,6 +194,9 @@ module.exports = function createContext(options) {
   function payload() {
     var result={};
     var slots=currentSlots();
+    // Opt-in hosts render this same ephemeral record in their activity slots.
+    // Do not let the compatibility footer defeat their hide/order preferences.
+    if (options.musicAsActivity === true && musicActivity()) { slots[0]=slots[1]=null; }
     if (markerNeeded) {
       // A boundary may itself have been queued before a second reconnect.
       // Boundaries never contain private notification data. A fresh notice is
@@ -257,6 +265,15 @@ module.exports = function createContext(options) {
     pending=true;
     pump();
     scheduleExpiry();
+    notify();
+  }
+  function notify() { if (typeof options.onChanged === 'function') { options.onChanged(); } }
+  function musicActivity() {
+    if (stopped || !connected || !enabled('music') || !fresh(records[0]) || !musicCard || musicCard.validUntil<=now()) { return null; }
+    // Reading a projection never changes the authoritative receipt or revision.
+    var result=JSON.parse(JSON.stringify(musicCard));
+    result.selectionKey='builtin:music'; result.providerName='Music';
+    return result;
   }
   function scheduleExpiry() {
     if (expiryTimer !== null) { options.cancelLater(expiryTimer); }
@@ -325,6 +342,20 @@ module.exports = function createContext(options) {
     }
     records[0]=record(title,pictureOf(p.artwork,40),end,{kind:KIND.GENERIC,source:SOURCE.MUSIC});
     records[1]=record(textOf(p.artist),null,end,{kind:KIND.GENERIC,source:SOURCE.MUSIC});
+    var provider=envelope.pluginUuid===undefined?MUSIC_ADAPTER_UUID:activityWire.uuid(envelope.pluginUuid)?envelope.pluginUuid:null;
+    if (!provider) { musicCard=null; return; }
+    var artist=records[1] ? records[1].text : '', identity=JSON.stringify([provider,keyOf(instance),title,artist]);
+    if (identity !== musicIdentity || musicRevision===MAX_EPOCH) { musicIdentity=identity; musicRun++; musicRevision=0; }
+    musicRevision++;
+    var bitmap=records[0].bitmap, image;
+    if (bitmap) {
+      var pixels=[],stride=((bitmap.width+7)>>3)*4,row=Math.ceil(bitmap.width/2);
+      for (var y=0;y<bitmap.height;y++) { pixels=pixels.concat(bitmap.pixels.slice(y*stride,y*stride+row)); }
+      image={width:bitmap.width,height:bitmap.height,palette:bitmap.palette.slice(),pixels:pixels};
+    }
+    musicCard=activityView.normalize({provider:provider,id:'legacy-music-'+musicRun,kind:'music',revision:musicRevision,
+      state:playing?'active':'paused',observedAt:records[0].confirmedAt,validUntil:end,private:true,caption:artist,
+      main:{type:'text',label:'Track',text:title},support:artist?{type:'text',label:'Artist',text:artist}:null,image:image});
   }
   function phoneData(envelope) {
     if (!envelope.instances.length) { records[4]=null; return; }
@@ -517,9 +548,11 @@ module.exports = function createContext(options) {
       if (heartbeat !== null) { options.cancelLater(heartbeat); }
       if (expiryTimer !== null) { options.cancelLater(expiryTimer); }
       heartbeat=expiryTimer=null;
+      notify();
     } else { connected=true; refresh(true,token); }
   }
-  return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,
+  return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,musicActivity:musicActivity,
+    musicProvider:function(){var card=musicActivity();return card?{uuid:card.provider,name:'Music',item:'track',available:true}:null;},
     status:function() {
       var sources={}, sourceStates={}, error='';
       Object.keys(groups).forEach(function(name) { sources[name]=groups[name].error; });
@@ -553,5 +586,6 @@ module.exports = function createContext(options) {
       if (heartbeat !== null) { options.cancelLater(heartbeat); }
       if (expiryTimer !== null) { options.cancelLater(expiryTimer); }
       heartbeat=expiryTimer=null;
+      notify();
     }};
 };
