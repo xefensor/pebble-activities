@@ -1,6 +1,6 @@
 {
   "name": "pebble-activities",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "author": "Xef",
   "description": "Versioned activity publishing and consuming helpers for stock Pebble OS.",
   "main": "src/js/index.js",
@@ -13,6 +13,7 @@
     "publisher.js",
     "consumer.js",
     "wire.js",
+    "view.js",
     "dist.zip",
     "include",
     "src",

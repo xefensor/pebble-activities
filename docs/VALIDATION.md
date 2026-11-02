@@ -99,3 +99,22 @@ and reconnect timing still need device testing. The portable suites cover those
 state transitions with injected host APIs; they do not substitute for a real
 mobile-app test. Native Workout sessions and fully watch-local cross-app sharing
 remain unavailable through the public stock SDK.
+# 0.2.0 ACT2 candidate validation
+
+On 2 November 2026 the feature branch passed 119 JavaScript tests, both portable
+native suites and 23 Python release-helper tests. Cross-language fixtures include
+two independent clocks, a value/meter/artwork card, a bounded terminal result and
+the exact 2,672-byte maximum frame with two full images. Decoder tests cover
+malformed/truncated input, UTF-8, sessions and view sequences, immutable source
+metadata, per-item retention/expiry and terminal no-resurrection rules.
+
+The native view allocation is 1,324 bytes per card and 2,676 bytes per state on
+ARM. The isolated new codec compiles warning-free; compiler stack reports use
+160 bytes for `pav_decode` and 72 for `pav_state_receive`, excluding their callees.
+The legacy decoder now clears public non-clock content on disconnect, matching
+the existing specification; a native regression covers that case.
+
+SDK 4.33.1 successfully built the combined library package. This is library
+validation, not a consuming app's RAM, code-size or physical-watch measurement.
+Dynamic and Timer must build and validate their own pinned candidates. Tests
+and builds here do not establish real-phone delivery, hardware alarms or power.

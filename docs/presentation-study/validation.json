@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-02",
+  "scope": "Synthetic offline presentation study; experimental contract",
+  "semantic": {
+    "fixtures": 11,
+    "surfaces": 4,
+    "passed": 37,
+    "failed": 0
+  },
+  "browser": {
+    "cases": 258,
+    "errors": [],
+    "elisions": 32,
+    "fixtures": 11,
+    "themes": 2
+  },
+  "runtime": {
+    "node": "v26.12.0",
+    "chromium": "Chromium 156.0.8078.73 stable"
+  },
+  "nativeRenderingVerified": false,
+  "productionProtocolChanged": false,
+  "realProviderIntegrationVerified": false
+}

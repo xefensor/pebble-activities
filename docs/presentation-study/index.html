@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Activity presentation study</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header class="intro">
+      <p class="eyebrow">Pebble Activities · design experiment</p>
+      <h1>One activity, different places</h1>
+      <p class="lede">Choose the main information once. Keep its meaning as the available space changes.</p>
+      <p class="scope">Offline browser composition study at 200 × 228 pixels. Native font metrics, watch interaction and transport are unverified. This is a proposed contract, separate from the released API and UI.</p>
+    </header>
+
+    <section class="controls" aria-label="Study controls">
+      <label class="wide-control">Activity example
+        <select id="fixture"></select>
+      </label>
+      <label>Main information
+        <select id="headline"><option value="">Provider's choice</option></select>
+      </label>
+      <label>Watch theme
+        <select id="theme"><option value="light">Light</option><option value="dark">Dark</option></select>
+      </label>
+      <label class="time-control">Time after observation <output id="time-output" for="time">0 seconds</output>
+        <input id="time" type="range" min="0" max="600" step="1" value="0">
+      </label>
+      <div class="toggles">
+        <label><input id="connected" type="checkbox" checked> Source available</label>
+        <label><input id="confirmed" type="checkbox" checked> Source confirmed</label>
+        <label><input id="allowed" type="checkbox" checked> Permission granted</label>
+        <label><input id="withdrawn" type="checkbox"> Source withdrawn</label>
+        <label><input id="terminal" type="checkbox"> Source reports completed</label>
+      </div>
+    </section>
+
+    <div class="case-caption"><p id="case-description"></p><p id="selection-note"></p></div>
+
+    <section class="views" aria-label="Four presentations of the same activity">
+      <article class="view">
+        <h2>Dynamic primary</h2>
+        <p class="view-caption">Main information and context</p>
+        <div class="watch-shell"><div class="screen" id="primary-screen" data-surface="primary"></div></div>
+      </article>
+      <article class="view">
+        <h2>Dynamic secondary</h2>
+        <p class="view-caption">A compact place for any activity</p>
+        <div class="watch-shell"><div class="screen" id="secondary-screen" data-surface="secondary"></div></div>
+      </article>
+      <article class="view">
+        <h2>Dashboard list</h2>
+        <p class="view-caption">The same main information in a row</p>
+        <div class="watch-shell"><div class="screen" id="row-screen" data-surface="row"></div></div>
+      </article>
+      <article class="view">
+        <h2>Dashboard detail</h2>
+        <p class="view-caption">Supporting facts, with scrollable detail</p>
+        <div class="watch-shell"><div class="screen" id="detail-screen" data-surface="detail"></div></div>
+      </article>
+    </section>
+
+    <section class="observations">
+      <div>
+        <h2>What this tests</h2>
+        <p>The selected fact stays the headline in all four places. Labels and units identify it; clocks calculate from anchors. A deliberate selection above can change the main fact without changing the provider's record.</p>
+      </div>
+      <div>
+        <h2>When the source is unavailable</h2>
+        <p>Only an explicitly selected public clock can remain, marked as last reported. Observed values, status and progress are omitted. Denial, withdrawal, expiry or a terminal source state clears the summary.</p>
+      </div>
+    </section>
+
+    <footer>
+      <p id="study-status" role="status" data-check="pending">Waiting for study data…</p>
+      <p>All examples are fixtures. No plugin discovery, commands, persistent storage or watch connection is used.</p>
+      <p><a href="../CONSUMER-PRESENTATION-DESIGN.md">Read the proposed presentation design</a></p>
+    </footer>
+    <pre id="study-report" hidden></pre>
+  </main>
+  <script src="fixtures.js"></script>
+  <script src="model.js"></script>
+  <script src="ui.js"></script>
+</body>
+</html>

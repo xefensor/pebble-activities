@@ -386,10 +386,28 @@ static void test_publisher(void) {
   assert(pa_publisher_begin(&publisher, &sent) && sent.ticket == 1);
 }
 
+static void test_public_reading_disconnect(void) {
+  PaState state;
+  pa_state_init(&state, 2, true);
+  state.snapshot.count = 1;
+  PaActivity *reading = &state.snapshot.items[0];
+  strcpy(reading->provider, "00112233-4455-6677-8899-aabbccddeeff");
+  strcpy(reading->id, "public-reading");
+  strcpy(reading->main, "72%");
+  reading->state = PA_ACTIVE;
+  reading->clock = PA_CLOCK_NONE;
+  reading->observed_at = 100;
+  reading->valid_until = 200;
+  assert(pa_state_select(&state, 101, 0));
+  assert(pa_state_set_connected(&state, false));
+  assert(!pa_state_select(&state, 101, 0));
+  assert(!state.snapshot.items[0].provider[0]);
+}
+
 int main(int argc, char **argv) {
   assert(sizeof(PaState) < 3200); /* bounded consumer budget, independent of Core */
   test_decoder(); test_image_numeric(); test_reserved_kind_privacy();
-  test_lifecycle(); test_clocks(); test_publisher();
+  test_lifecycle(); test_clocks(); test_publisher(); test_public_reading_disconnect();
   if (argc > 1) test_cross_language(argv[1]);
   puts("activity native decode/state/clock suites passed");
   return 0;

@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-02",
+  "scope": "ARM allocation comparison only; candidate is not a wire protocol or production implementation",
+  "compiler": "arm-none-eabi-gcc (xPack GNU Arm Embedded GCC x86_64) 14.2.1 20241119",
+  "flags": [
+    "-std=c99",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-mthumb",
+    "-mcpu=cortex-m4",
+    "-Iinclude",
+    "-c"
+  ],
+  "measuredBytes": {
+    "candidate_card": 1324,
+    "candidate_datum": 28,
+    "candidate_snapshot": 2664,
+    "candidate_state": 2676,
+    "current_card": 1328,
+    "current_snapshot": 2672,
+    "current_state": 2688
+  },
+  "source": "storage-probe.c",
+  "nativeDecoderVerified": false,
+  "nativeRendererVerified": false,
+  "hostCodeBudgetVerified": false,
+  "wireFormatImplemented": false
+}

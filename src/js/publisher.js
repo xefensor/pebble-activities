@@ -1,8 +1,18 @@
 'use strict';
 
 var wire=require('./wire');
+var view=require('./view');
 var DEFAULT_KEY='pebble.activities.publisher.v1';
 var MAX_RECORDS=8;
+function record(snapshot,provider){
+  var card=wire.normalize(snapshot,provider);
+  if(!card){return null;}
+  if(snapshot.totalDuration!==undefined){
+    if(!wire.integer(snapshot.totalDuration,0,wire.MAX_EPOCH)){return null;}
+    card.totalDuration=snapshot.totalDuration;
+  }
+  return card;
+}
 function storageOf(options) {
   var storage=options.storage;
   if(!storage || typeof storage.getItem!=='function' || typeof storage.setItem!=='function') {throw new Error('STORAGE_UNAVAILABLE');}
@@ -21,7 +31,7 @@ function loadState(storage,key,provider) {
     var slots=[],identities=Object.create(null);
     for(var i=0;i<source.length;i++) {
       if(source[i]===null || source[i]===undefined) {slots.push(null);continue;}
-      var card=wire.normalize(source[i],provider);
+      var card=record(source[i],provider);
       if(!card || card.private || identities[card.id]) {return {revision:revision,slots:[]};}
       identities[card.id]=true;
       revision=Math.max(revision,card.revision);
@@ -50,7 +60,7 @@ function createPublisher(options) {
     if(!snapshot || snapshot.schemaVersion!==1) {return {ACTIVITY_ERROR:'INVALID_SNAPSHOT'};}
     var slot=snapshot.slot===undefined?0:snapshot.slot;
     if(!wire.integer(slot,0,maxRecords-1)) {return {ACTIVITY_ERROR:'INVALID_SLOT'};}
-    var card=wire.normalize(snapshot,options.pluginUuid);
+    var card=record(snapshot,options.pluginUuid);
     if(!card) {return {ACTIVITY_ERROR:'INVALID_SNAPSHOT'};}
     var saved=loadState(storage,key,options.pluginUuid),previous=saved.slots[slot];
     if(card.revision<saved.revision) {return {ACTIVITY_ERROR:'STALE_REVISION'};}
@@ -96,7 +106,7 @@ function createPublisher(options) {
       main:payload.ACTIVITY_MAIN,footer:payload.ACTIVITY_FOOTER,observedAt:payload.ACTIVITY_OBSERVED_AT,
       validUntil:payload.ACTIVITY_VALID_UNTIL,deadline:payload.ACTIVITY_DEADLINE,duration:payload.ACTIVITY_DURATION,
       clockAt:payload.ACTIVITY_CLOCK_AT,private:privacy===undefined ? options.private!==false : privacy===true || privacy===1,
-      slot:payload.ACTIVITY_SLOT}):{ACTIVITY_ERROR:'INVALID_SNAPSHOT'};
+      slot:payload.ACTIVITY_SLOT,totalDuration:payload.ACTIVITY_TOTAL_DURATION}):{ACTIVITY_ERROR:'INVALID_SNAPSHOT'};
     if(wire.integer(payload.ACTIVITY_PUBLISH_SESSION,1,wire.MAX_EPOCH)){receipt.ACTIVITY_PUBLISH_SESSION=payload.ACTIVITY_PUBLISH_SESSION;}
     return receipt;
   }
@@ -124,12 +134,17 @@ function createProvider(options) {
   function source(request) {
     var nowMs=now(),slots=loadState(storage,key,options.pluginUuid).slots,instances=[];
     slots.forEach(function(card) {
-      if(card && card.validUntil*1000>nowMs) {instances.push({instanceId:card.id,properties:properties(card,request)});}
+      if(card && card.validUntil*1000>nowMs) {
+        if(request&&request.item===view.ITEM){
+          var projected=view.fromLegacy(card,{terminalResults:true});
+          if(projected){projected.unconfirmed=true;var instance=view.toSourceInstance(projected,request);if(instance){instances.push(instance);}}
+        }else{instances.push({instanceId:card.id,properties:properties(card,request)});}
+      }
     });
     return {validUntilMs:Math.floor(nowMs+30000),instances:instances};
   }
   function handleSource(request,respond) {
-    if(!request || request.category!==wire.CATEGORY || request.item!==wire.ITEM) {
+    if(!request || request.category!==wire.CATEGORY || request.item!==wire.ITEM&&request.item!==view.ITEM) {
       if(respond && typeof respond.error==='function') {respond.error('INVALID_REQUEST','Unsupported source');}
       return;
     }

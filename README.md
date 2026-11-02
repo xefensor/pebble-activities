@@ -4,15 +4,31 @@ Shared publishing and consuming helpers for ongoing activities on **stock
 PebbleOS**. A compatible provider can expose a timer, elapsed session or formatted
 reading without adding a layout for that particular app to every watchface.
 
-Version 0.1.2 adds bounded multi-instance publishing. The initial native target is Emery
+The 0.2.0 candidate adds bounded two-item activity cards and an opt-in ACT2 native view.
+It retains schema 1/ACT1 compatibility. The initial native target is Emery
 (Pebble Time 2). Hardware and real-phone checks are recorded separately from
 portable tests and emulator results in [validation](docs/VALIDATION.md).
 
-Download the [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/pebble-activities-0.1.2.tgz)
+The last published version is 0.1.2. Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/pebble-activities-0.1.2.tgz)
 or the [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/dist.zip).
 Verify downloads against [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.1.2/SHA256SUMS.txt).
 Install [Timer](https://github.com/xefensor/pebble-app-timer) separately to publish
 native countdowns to a compatible watchface.
+
+## Version 0.2.0
+
+- Main and optional supporting text/value/clock, one 40px artwork slot and an
+  optional range-derived meter in the same maximum 2,672-byte native frame.
+- Independent item clocks, validity and explicit public last-reported retention;
+  private content clears and terminal results require bounded source opt-in.
+- Immutable authoritative source revisions are separate from native view
+  sequences. Older source snapshots and terminal resurrection remain invalid.
+- `activity/card` schema 2 and `nativeFormat: 2` are opt-in. Legacy providers,
+  consumers, native publishers and stable multi-timer storage remain supported.
+- Timer's optional configured-duration metadata produces remaining and elapsed
+  clocks without changing native persistence or alarm ownership.
+
+See the [card and native view specification](docs/VIEW-SPECIFICATION.md).
 
 ## Version 0.1.2
 
@@ -97,6 +113,18 @@ Native consumers include:
 The decoder and state functions register no SDK services. Call them from the
 host's existing lifecycle. The specification and the standalone Timer repository document the
 exact properties, receipt keys, session handshake and failure cases.
+
+### Presentation across apps
+
+The [use-case and architecture review](docs/USE-CASE-REVIEW.md) compares the
+supported summary against a proposed bounded main-plus-supporting-item view.
+It covers source/view revisions, retention, result visibility and measured ARM
+storage, while keeping layouts owned by consumers. Any compatible activity may
+occupy either Dynamic position. The [native design](docs/NATIVE-ACTIVITY-DESIGN.md)
+documents compatibility and correctness work for the current path. These are
+designs; [specification version 1](docs/SPECIFICATION.md) remains the implemented
+contract. The earlier [browser study](docs/presentation-study/README.md) remains
+an exploration.
 
 ### Multiple native timers
 

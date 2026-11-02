@@ -258,7 +258,8 @@ void pa_state_set_session(PaState *state, uint32_t session_token) {
 
 static void clear_private(PaState *state) {
   for (unsigned i = 0; i < state->snapshot.count; ++i) {
-    if (state->snapshot.items[i].flags & PA_FLAG_PRIVATE)
+    if ((state->snapshot.items[i].flags & PA_FLAG_PRIVATE) ||
+        state->snapshot.items[i].clock == PA_CLOCK_NONE)
       memset(&state->snapshot.items[i], 0, sizeof(state->snapshot.items[i]));
     else if (state->snapshot.items[i].provider[0])
       state->snapshot.items[i].flags |= PA_FLAG_UNCONFIRMED;
