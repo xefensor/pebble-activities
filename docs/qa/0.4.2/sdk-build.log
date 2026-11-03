@@ -1,0 +1,12 @@
+Setting top to                           : /home/xela/Projekty/Pebble/pebble-activities 
+Setting out to                           : /home/xela/Projekty/Pebble/pebble-activities/build 
+Checking for program 'webpack'           : /home/xela/Projekty/Pebble/.recovery-tools/data/pebble-sdk/SDKs/current/node_modules/.bin/webpack 
+Found Pebble SDK for emery in:           : /home/xela/Projekty/Pebble/.recovery-tools/data/pebble-sdk/SDKs/current/sdk-core/pebble/emery 
+Checking for program 'gcc, cc'           : arm-none-eabi-gcc 
+Checking for program 'ar'                : arm-none-eabi-ar 
+'configure' finished successfully (0.033s)
+Waf: Entering directory `/home/xela/Projekty/Pebble/pebble-activities/build'
+[11/13] Processing copy_js: src/js/activity.js src/js/adapters/legacy/complication-data.js src/js/adapters/legacy/context.js src/js/consumer.js src/js/host.js src/js/index.js src/js/publisher.js src/js/selection.js src/js/summary-view.js src/js/summary.js src/js/view.js src/js/wire.js -> build/js/activity.js build/js/adapters/legacy/complication-data.js build/js/adapters/legacy/context.js build/js/consumer.js build/js/host.js build/js/index.js build/js/publisher.js build/js/selection.js build/js/summary-view.js build/js/summary.js build/js/view.js build/js/wire.js
+[13/13] Creating lib_package:  -> dist.zip
+Waf: Leaving directory `/home/xela/Projekty/Pebble/pebble-activities/build'
+'build' finished successfully (0.071s)

@@ -26,6 +26,10 @@ Pebble Watchface Core, Dynamic's renderer and any firmware fork.
   content transient. Visibility of terminal results requires explicit opt-in.
 - The host owns SDK subscriptions, AppMessage dispatch, clocks, timers and UI.
   Share its single queue; do not initialize competing dispatchers.
+- Read-only hosts may use `pebble-activities/host` to omit the publisher/storage
+  bridge. Preserve the complete root API. Internal borrowed cards never escape:
+  public reads and host callbacks own their nested data; both normalization
+  boundaries still validate user projections and arbitrary encoder calls.
 
 ## Invariants
 

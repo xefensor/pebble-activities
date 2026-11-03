@@ -1,5 +1,49 @@
 # Validation
 
+## 0.4.2 consumer optimization local candidate — 3 November 2026
+
+176 JavaScript tests, all three strict portable C suites and 23 Python
+release-helper tests pass. The official SDK4.33.1 Emery library builds.
+No native C source, wire fixture or public provider schema changed.
+New regressions exercise mutations of nested artwork/source fields through
+acceptance, selection, presentation callbacks and returned snapshots. They also
+verify that the supported `pebble-activities/host` entry does not load the
+publisher/storage bridge, while the complete root API remains available.
+
+The consumer indexes provider metadata once per discovery, avoids copying all
+cards to calculate a status count, removes the second public-catalogue clone,
+and retains its already-owned normalized presentation instead of cloning it
+again. Source fingerprints use shallow descriptor copies; source artwork is
+serialized once without being copied/parsed. Availability expiry compares
+explicit removal/confirmation changes instead of serializing complete cards.
+All acceptance callbacks now receive defensive copies. Custom selection and
+presentation callbacks, and all public reads, retain defensive nested copies.
+Both public normalization boundaries remain in place: host selection is
+untrusted input, and the public encoder must validate arbitrary callers.
+
+`scripts/benchmark-consumer.cjs 0c3b6a47b497308c15b851ce7d0e69499cdf79e7`
+counts JSON calls and UTF-16 characters for sixteen records with40px images.
+It loads the baseline and candidate in isolated VM module graphs without
+modifying either checkout, and asserts byte-identical emitted native frames
+under both selection policies. The recorded comparison is in
+`qa/0.4.2/consumer-json-work.json`:
+
+| Workload | Baseline JSON parse/stringify characters | Candidate characters |
+| --- | ---: | ---: |
+|100 status reads|3,478,000 /3,478,000|0 /0|
+|20 public catalogue reads|1,399,540 /1,399,540|695,600 /695,600|
+|20 default forced projections|869,688 /955,988|87,788 /174,088|
+|20 custom-selection forced projections|869,688 /955,988|783,388 /869,688|
+|20 duplicate source deliveries with custom selection|1,385,760 /2,170,540|695,600 /1,480,380|
+
+This is deterministic serialization work, not elapsed phone time, heap usage,
+watch CPU profiling or battery evidence. There is no new persistent content
+cache, timer or protocol. Incarnation, immutable revision/fingerprint checks,
+original observation/expiry, private clearing, capabilities and retry limits
+retain their existing coverage. Historical releases remain unchanged; this
+candidate is local until separately published. Test/build logs are in
+`docs/qa/0.4.2/` and final package hashes are in `releases/SHA256SUMS.txt`.
+
 ## 0.4.1 GitHub prerelease publication — 3 November 2026
 
 Published as a [GitHub development prerelease](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.1)

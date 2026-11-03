@@ -33,6 +33,18 @@ function compatible(plugin,format) {
 }
 function errorCode(error) {return error && typeof error.code==='string' && /^[A-Z0-9_]{1,48}$/.test(error.code)?error.code:'UNKNOWN';}
 function clone(value) {return JSON.parse(JSON.stringify(value));}
+function sourceFingerprint(source) {
+  // Omit mutable capabilities without first copying the complete bitmap and
+  // parsing it back. The source has already passed its format's validation.
+  var copy={};
+  Object.keys(source).forEach(function(name){if(name!=='unconfirmed'&&name!=='displayName'){copy[name]=source[name];}});
+  if(source.record){
+    copy.record={};Object.keys(source.record).forEach(function(name){
+      if(name!=='actions'&&name!=='entityRef'&&name!=='openApp'){copy.record[name]=source.record[name];}
+    });
+  }
+  return JSON.stringify(copy);
+}
 module.exports=function createActivities(options) {
   options=options||{};
   var nativeFormat=options.nativeFormat===3?3:options.nativeFormat===2?2:1,codec=nativeFormat===3?summaryView:nativeFormat===2?view:wire;
@@ -40,7 +52,7 @@ module.exports=function createActivities(options) {
   var keys=options.keys||{}, send=options.send, groups=Object.create(null), session=0, sequence=0, generation=0;
   var stopped=false,connected=true,enabled=true,available=typeof pebble.enumeratePlugins==='function' && typeof pebble.subscribeToSource==='function';
   var expiryTimer=null,discoveryTimer=null,retryTimer=null,bootTimer=null,lastError='',bootRequested=false,bootAttempts=0,failureCount=0,seenOrder=0,enumerated=false;
-  var revisions=Object.create(null), orders=Object.create(null), lastSignature='',currentSettings={},installed=[],lastView=null;
+  var revisions=Object.create(null), orders=Object.create(null), lastSignature='',currentSettings={},installed=[],providerMetadata=Object.create(null),lastView=null;
   function seconds(){return Math.max(1,Math.floor(now()/1000));}
   function key(name){return keys[name]===undefined?name:keys[name];}
   function readSettings(){var s=typeof options.getSettings==='function'?options.getSettings():{};return s&&typeof s==='object'?s:{};}
@@ -48,19 +60,37 @@ module.exports=function createActivities(options) {
   function allowed(provider){return (!Array.isArray(currentSettings.providers)||currentSettings.providers.indexOf(provider)>=0) &&
     (!Array.isArray(currentSettings.disabledProviders)||currentSettings.disabledProviders.indexOf(provider)<0);}
   function stopGroup(group){if(group.handle && typeof group.handle.unsubscribe==='function'){try{group.handle.unsubscribe();}catch(ignored){}}group.handle=null;group.generation++;}
-  function accepted(card){try{return typeof options.acceptActivity!=='function'||options.acceptActivity(card)!==false;}catch(ignored){return false;}}
+  function accepted(card){try{return typeof options.acceptActivity!=='function'||options.acceptActivity(clone(card))!==false;}catch(ignored){return false;}}
   function visible(card,t){return card.validUntil>t&&
     (nativeFormat<2||card.main.validUntil>t&&(!card.unconfirmed||!card.private&&card.main.retain))&&
     ((card.state!=='completed'&&card.state!=='cancelled')||nativeFormat>=2&&card.showTerminal);}
   function cleanGroup(provider){var group=groups[provider];if(!group){return;}stopGroup(group);group.cards=[];delete groups[provider];}
-  function catalogue(){
+  function catalogue(defensive){
     var t=seconds(), result=[];
-    Object.keys(groups).forEach(function(provider){groups[provider].cards.forEach(function(card){if(visible(card,t)&&accepted(card)){var copy=clone(card),metadata=installed.filter(function(p){return p.uuid===provider;})[0];if(metadata&&metadata.name){copy.providerName=metadata.name;}result.push(copy);}});});
+    Object.keys(groups).forEach(function(provider){
+      var metadata=providerMetadata[provider];
+      groups[provider].cards.forEach(function(card){if(visible(card,t)&&accepted(card)){
+        // Internal default selection can borrow immutable cards: normalize()
+        // below owns the resulting copy. User callbacks/public reads get deep
+        // copies, including nested artwork and capabilities.
+        var copy=defensive?clone(card):card;
+        if(metadata&&metadata.name){
+          if(!defensive){copy={};Object.keys(card).forEach(function(k){copy[k]=card[k];});}
+          copy.providerName=metadata.name;
+        }
+        result.push(copy);
+      }});
+    });
     result.sort(function(a,b){return orders[a.provider+'|'+a.id]-orders[b.provider+'|'+b.id];});
     return result;
   }
+  function catalogueCount(){
+    var t=seconds(),count=0;
+    Object.keys(groups).forEach(function(provider){groups[provider].cards.forEach(function(card){if(visible(card,t)&&accepted(card)){count++;}});});
+    return count;
+  }
   function projection(){
-    var all=catalogue(), result=typeof options.select==='function'?options.select(all.slice()):all.slice(0,2);
+    var custom=typeof options.select==='function',all=catalogue(custom),result=custom?options.select(all):all.slice(0,2);
     if(!Array.isArray(result)){result=[];}
     return result.slice(0,2).map(function(card){return codec.normalize(card);}).filter(Boolean);
   }
@@ -82,7 +112,9 @@ module.exports=function createActivities(options) {
     if(typeof send!=='function'){return;}
     var revision=sequence,payload={};
     var sentAt=seconds();payload[key('ACTIVITY_DATA')]=codec.encode(cards,{session:session,revision:revision,sentAt:sentAt});
-    lastView={session:session,viewSequence:revision,sequence:revision,sentAt:sentAt,cards:clone(cards)};
+    // projection() owns these normalized records. Only copied snapshots leave
+    // the consumer, so retaining them needs no second JSON round trip.
+    lastView={session:session,viewSequence:revision,sequence:revision,sentAt:sentAt,cards:cards};
     if(typeof options.onView==='function'){options.onView(clone(lastView));}
     if(retryTimer!==null){cancel(retryTimer);retryTimer=null;}
     try{send(payload,function(){
@@ -105,16 +137,21 @@ module.exports=function createActivities(options) {
     });}catch(ignored){if(++failureCount<3){retryTimer=later(function(){retryTimer=null;publish(true);},2000);}}
   }
   function uncertain(group){
-    group.cards=group.cards.filter(function(card){return !card.private&&card.validUntil>seconds()&&
-      (nativeFormat>=2?card.main.retain&&card.main.validUntil>seconds():card.clock!=='none');}).map(function(card){var copy=clone(card);copy.unconfirmed=true;return copy;});
+    var before=group.cards.length,changed=false,t=seconds();
+    group.cards=group.cards.filter(function(card){return !card.private&&card.validUntil>t&&
+      (nativeFormat>=2?card.main.retain&&card.main.validUntil>t:card.clock!=='none');}).map(function(card){
+        if(card.unconfirmed){return card;}
+        changed=true;var copy={};Object.keys(card).forEach(function(k){copy[k]=card[k];});copy.unconfirmed=true;return copy;
+      });
+    return changed||before!==group.cards.length;
   }
   function expire(){
     var t=seconds(), changed=false;
     Object.keys(groups).forEach(function(provider){
-      var group=groups[provider],before=JSON.stringify(group.cards);
+      var group=groups[provider],before=group.cards.length;
       group.cards=group.cards.filter(function(card){return card.validUntil>t&&(nativeFormat<2||card.main.validUntil>t);});
-      if(group.expiresAt!==null && group.expiresAt<=t){group.expiresAt=null;group.error='SOURCE_EXPIRED';uncertain(group);}
-      if(before!==JSON.stringify(group.cards)){changed=true;}
+      if(group.expiresAt!==null && group.expiresAt<=t){group.expiresAt=null;group.error='SOURCE_EXPIRED';if(uncertain(group)){changed=true;}}
+      if(before!==group.cards.length){changed=true;}
     });
     if(changed){publish();}else{scheduleExpiry();}
   }
@@ -162,16 +199,14 @@ module.exports=function createActivities(options) {
         group.item===view.ITEM?view.sourceCard(instance,group.provider):sourceCard(instance,group.provider);
       if(!source){malformed=true;return;}
       if(group.item===summary.ITEM&&!source.displayName){
-        var providerMetadata=installed.filter(function(p){return p.uuid===group.provider;})[0];
-        if(providerMetadata&&providerMetadata.name){source.displayName=providerMetadata.name;}
+        var metadataEntry=providerMetadata[group.provider];
+        if(metadataEntry&&metadataEntry.name){source.displayName=metadataEntry.name;}
       }
       var card=group.item===summary.ITEM?summary.toView(source):group.item===activity.ITEM?activity.toView(source):nativeFormat>=2&&group.item!==view.ITEM?view.fromLegacy(source):source;
       if(nativeFormat===3&&group.item!==summary.ITEM&&card){card=summaryView.fromLegacy(card);}
       if(!card&&group.item!==summary.ITEM){malformed=true;return;}
       if(card&&!accepted(card)){return;}
-      var fingerprintCard=clone(source);delete fingerprintCard.unconfirmed;delete fingerprintCard.displayName;
-      if(fingerprintCard.record){delete fingerprintCard.record.actions;delete fingerprintCard.record.entityRef;delete fingerprintCard.record.openApp;}
-      var fingerprint=JSON.stringify(fingerprintCard),identity=source.provider+'|'+source.id;
+      var fingerprint=sourceFingerprint(source),identity=source.provider+'|'+source.id;
       var state=source.record?(source.record.state||'active'):source.state;
       var metadata=JSON.stringify([source.kind||source.type,state,source.observedAt,source.validUntil,source.private]);
 
@@ -227,6 +262,7 @@ module.exports=function createActivities(options) {
         if(!metadata[p.uuid]){metadata[p.uuid]={uuid:p.uuid,name:wire.text(p.name,64),item:sourceItem(p,nativeFormat),available:true};}
       });
       installed=Object.keys(metadata).sort().slice(0,wire.LIMITS.providers).map(function(uuid){return metadata[uuid];});
+      providerMetadata=Object.create(null);installed.forEach(function(p){providerMetadata[p.uuid]=p;});
       var providers=installed.filter(function(p){return allowed(p.uuid);}).map(function(p){items[p.uuid]=p.item;return p.uuid;});
       enumerated=true;
       Object.keys(groups).forEach(function(provider){if(providers.indexOf(provider)<0){cleanGroup(provider);}});
@@ -265,9 +301,9 @@ module.exports=function createActivities(options) {
   }
   return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,reproject:function(){publish(true);},
     providers:function(){return clone(installed);},
-    catalogue:function(){return clone(catalogue());},
+    catalogue:function(){return catalogue(true);},
     view:function(){return lastView?clone(lastView):null;},
-    status:function(){var providers=Object.keys(groups).map(function(provider){var group=groups[provider];return {pluginUuid:provider,state:group.error?'unavailable':group.ready?'ready':'waiting',error:group.error,receivedAt:group.receivedAt};});var count=catalogue().length,complete=enumerated&&Object.keys(groups).every(function(provider){return groups[provider].settled;});var ready=enabled&&available&&connected&&enumerated&&providers.every(function(p){return p.state==='ready';});return {available:available,connected:connected,enabled:enabled,ready:ready,complete:complete,phase:ready?'ready':count?'partial':complete||lastError||!connected||!available?'unavailable':'loading',error:lastError||providers.map(function(p){return p.error;}).filter(Boolean)[0]||'',providers:providers,count:count};},
+    status:function(){var providers=Object.keys(groups).map(function(provider){var group=groups[provider];return {pluginUuid:provider,state:group.error?'unavailable':group.ready?'ready':'waiting',error:group.error,receivedAt:group.receivedAt};});var count=catalogueCount(),complete=enumerated&&Object.keys(groups).every(function(provider){return groups[provider].settled;});var ready=enabled&&available&&connected&&enumerated&&providers.every(function(p){return p.state==='ready';});return {available:available,connected:connected,enabled:enabled,ready:ready,complete:complete,phase:ready?'ready':count?'partial':complete||lastError||!connected||!available?'unavailable':'loading',error:lastError||providers.map(function(p){return p.error;}).filter(Boolean)[0]||'',providers:providers,count:count};},
     stop:function(){stopped=true;generation++;Object.keys(groups).forEach(cleanGroup);[expiryTimer,discoveryTimer,retryTimer,bootTimer].forEach(function(timer){if(timer!==null){cancel(timer);}});expiryTimer=discoveryTimer=retryTimer=bootTimer=null;revisions=Object.create(null);orders=Object.create(null);}}
 };
 module.exports.sourceCard=sourceCard;

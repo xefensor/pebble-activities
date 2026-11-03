@@ -83,6 +83,20 @@ manifest, limits and snapshot adapter. The
 schema3 providers. Real-phone and physical-watch checks retain their separate
 scope in [validation](docs/VALIDATION.md).
 
+## Version 0.4.2 local candidate
+
+- Add `require('pebble-activities/host')` for read-only hosts without loading the
+  native-owner publisher/storage bridge; the complete root API stays supported.
+- Count visible activities and expire snapshots without serializing artwork.
+- Remove redundant defensive copies inside the consumer; all public snapshots
+  and host callbacks retain their own nested data.
+- Index installed provider metadata once per discovery and fingerprint source
+  records without copying bitmap arrays or mutable capabilities.
+- Preserve every source revision, privacy, validity and native wire check.
+
+This is a locally validated optimization candidate. The published downloads
+below remain version 0.4.1 until a new release is explicitly published.
+
 ## Version 0.4.1
 
 - Adapt new notifications into the same ACT3 activity roles as other summaries.
@@ -204,6 +218,11 @@ See the [card and native view specification](docs/VIEW-SPECIFICATION.md).
 The package does not depend on Watchface Core. The host owns AppMessage dispatch,
 SDK services, timers, persistence keys and rendering. Dynamic and another watchapp
 can use separate instances of the same helpers while keeping their own UI.
+
+Read-only display hosts can import `pebble-activities/host`. It supplies
+`createActivities`, `createContext`, `selection`, `summary`, `summaryView`,
+`activity`, `view` and `wire`, without loading `publisher.js`. The root import
+continues to include all publisher/provider APIs for existing integrations.
 
 ## What the user installs
 

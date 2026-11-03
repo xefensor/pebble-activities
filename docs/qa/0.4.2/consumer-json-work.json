@@ -1,0 +1,148 @@
+{
+  "description": "JSON calls/UTF-16 character counts for sixteen 40px cards; counters exclude setup. No persistent data or phone timing.",
+  "baseline": "0c3b6a47b497308c15b851ce7d0e69499cdf79e7",
+  "defaultSelection": {
+    "before": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 1600,
+          "parseChars": 3478000,
+          "stringifyCalls": 1600,
+          "stringifyChars": 3478000
+        },
+        "20 catalogue reads": {
+          "parseCalls": 340,
+          "parseChars": 1399540,
+          "stringifyCalls": 340,
+          "stringifyChars": 1399540
+        },
+        "20 forced projections": {
+          "parseCalls": 360,
+          "parseChars": 869688,
+          "stringifyCalls": 380,
+          "stringifyChars": 955988
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 640,
+          "parseChars": 1385760,
+          "stringifyCalls": 1300,
+          "stringifyChars": 2170540
+        },
+        "source availability expiry": {
+          "parseCalls": 34,
+          "parseChars": 78245,
+          "stringifyCalls": 37,
+          "stringifyChars": 152136
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    },
+    "after": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 0,
+          "stringifyChars": 0
+        },
+        "20 catalogue reads": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 320,
+          "stringifyChars": 695600
+        },
+        "20 forced projections": {
+          "parseCalls": 20,
+          "parseChars": 87788,
+          "stringifyCalls": 40,
+          "stringifyChars": 174088
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 660,
+          "stringifyChars": 784780
+        },
+        "source availability expiry": {
+          "parseCalls": 1,
+          "parseChars": 4388,
+          "stringifyCalls": 2,
+          "stringifyChars": 8701
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    }
+  },
+  "customSelection": {
+    "before": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 1600,
+          "parseChars": 3478000,
+          "stringifyCalls": 1600,
+          "stringifyChars": 3478000
+        },
+        "20 catalogue reads": {
+          "parseCalls": 340,
+          "parseChars": 1399540,
+          "stringifyCalls": 340,
+          "stringifyChars": 1399540
+        },
+        "20 forced projections": {
+          "parseCalls": 360,
+          "parseChars": 869688,
+          "stringifyCalls": 380,
+          "stringifyChars": 955988
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 640,
+          "parseChars": 1385760,
+          "stringifyCalls": 1300,
+          "stringifyChars": 2170540
+        },
+        "source availability expiry": {
+          "parseCalls": 34,
+          "parseChars": 78245,
+          "stringifyCalls": 37,
+          "stringifyChars": 152136
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    },
+    "after": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 0,
+          "stringifyChars": 0
+        },
+        "20 catalogue reads": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 320,
+          "stringifyChars": 695600
+        },
+        "20 forced projections": {
+          "parseCalls": 340,
+          "parseChars": 783388,
+          "stringifyCalls": 360,
+          "stringifyChars": 869688
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 980,
+          "stringifyChars": 1480380
+        },
+        "source availability expiry": {
+          "parseCalls": 17,
+          "parseChars": 39152,
+          "stringifyCalls": 18,
+          "stringifyChars": 43465
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    }
+  }
+}
