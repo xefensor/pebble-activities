@@ -12,7 +12,11 @@ Pebble Watchface Core, Dynamic's renderer and any firmware fork.
   `xefensor/pebble-app-timer`. This repository builds the shared library only.
 - `docs/SPECIFICATION.md` defines our versioned convention using existing Pebble
   property shapes. It is not an official Pebble standard.
-- `docs/ACTIVITY-SPECIFICATION.md` defines the current simple schema 3 activity API:
+- `docs/SUMMARY-SPECIFICATION.md` defines schema4 standard/media summaries and ACT3.
+  Prefer `summary` authoring for new providers; nativeFormat3 consumes summary first.
+  Managed helper storage contains only incarnation/sequence; imported owners keep
+  original revision/observation/validity and acknowledgement history.
+- `docs/ACTIVITY-SPECIFICATION.md` preserves the simple schema 3 activity API:
   content, optional detail/image, app identity and source lifecycle. Plugins never
   choose normal/compact layouts or publish mandatory labels/meters.
 - `docs/VIEW-SPECIFICATION.md` preserves advanced schema 2 cards and ACT2 native views.

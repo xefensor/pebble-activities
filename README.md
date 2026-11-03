@@ -1,15 +1,19 @@
 # Pebble Activities
 
-Notification-style ongoing activities for **stock PebbleOS**. A plugin publishes
-one piece of content, an optional detail and an optional image. The host presents
-the same activity in normal or compact form. The plugin does not choose layouts,
-arrange labels or configure a slider or meter.
+Semantic ongoing activities for **stock PebbleOS**. Version **0.4.0** adds
+`activity/summary` schema4: standard summaries with typed headline/detail data,
+and media summaries with title/artist/artwork. Plugins publish content; consuming
+apps own priority, normal/compact layouts and animations.
 
-Version **0.3.0** introduces the simple `activity/live` schema 3 contract. Text,
-formatted values and independent countdown/elapsed clocks use the same API.
-Lifecycle, revision, observation, expiry and privacy remain source truth; the
-library handles their native representation. Schema 1/2 providers and ACT1/ACT2
-transport remain compatible. Emery (Pebble Time 2) is the initial native target.
+Use `require('pebble-activities/summary')` for new providers and `nativeFormat:3`
+for the explicit ACT3 profile. Managed fresh providers persist only publication
+counters; snapshot providers preserve native ownership and original leases.
+Optional app destinations remain separate from contextual controls.
+
+See the [summary specification](docs/SUMMARY-SPECIFICATION.md) for the implemented
+API and exact wire fields. Schema1/2/3 and ACT1/ACT2 remain compatible. The older
+schema3 example below remains supported. Dynamic, Timer and Open Activity have
+their own integration/device validation; no Dashboard app is included.
 
 ## Publish an activity
 
@@ -59,7 +63,17 @@ helpers, source declarations, privacy and migration. Real-phone and physical
 watch checks are recorded separately from portable/emulator results in
 [validation](docs/VALIDATION.md).
 
+## Version 0.4.0 local candidate
+
+- Add standard/media semantic source4 helpers and managed response headers.
+- Preserve saved Timer revisions, original observations, paused caps and acknowledged removal.
+- Add bounded ACT3 metadata for media identity, compact datum selection and semantic symbols.
+- Keep optional entity/action/navigation descriptors separately bounded.
+- Preserve earlier APIs, published tags and release bytes.
+
 ## Download
+
+The published development prerelease remains0.3.0;0.4.0 is a local candidate.
 
 The current [GitHub development prerelease is 0.3.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.3.0).
 Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/pebble-activities-0.3.0.tgz)

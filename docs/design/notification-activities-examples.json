@@ -1,0 +1,253 @@
+{
+  "status": "Design fixtures only; proposed API, not implemented exports or encoded packets",
+  "now": 1793700000,
+  "cases": [
+    {
+      "case": "timer",
+      "record": {
+        "id": "tea-run-42",
+        "type": "standard",
+        "name": "Tea",
+        "icon": "timer",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793700151}
+      },
+      "summaryAtNow": "02:31 · Tea"
+    },
+    {
+      "case": "second-timer",
+      "record": {
+        "id": "pasta-run-8",
+        "type": "standard",
+        "name": "Pasta",
+        "icon": "timer",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793700324}
+      },
+      "summaryAtNow": "05:24 · Pasta"
+    },
+    {
+      "case": "media",
+      "record": {
+        "id": "player-session-7",
+        "type": "media",
+        "title": "Better Than The Cyberpunk Soundtrack",
+        "artist": "The Midnight",
+        "itemId": "track-102",
+        "playback": "playing"
+      },
+      "summaryAtNow": "Better Than The Cyberpunk Soundtrack · The Midnight"
+    },
+    {
+      "case": "media-missing-optional-metadata",
+      "record": {"id": "radio-session-3", "type": "media", "title": "Live radio"},
+      "summaryAtNow": "Live radio"
+    },
+    {
+      "case": "workout-distance-and-pace",
+      "record": {
+        "id": "run-2026-11-03",
+        "type": "standard",
+        "name": "Outdoor run",
+        "icon": "workout",
+        "headline": {"type": "value", "value": 5.24, "unit": "km"},
+        "detail": {"type": "value", "value": "5:12", "unit": "/km", "label": "Pace"}
+      },
+      "summaryAtNow": "5.24 km · Outdoor run"
+    },
+    {
+      "case": "workout-with-rest-selected",
+      "record": {
+        "id": "interval-run-12",
+        "type": "standard",
+        "name": "Evening run",
+        "icon": "workout",
+        "headline": {"type": "value", "value": 5.24, "unit": "km"},
+        "detail": {"type": "clock", "mode": "countdown", "deadline": 1793700045, "label": "Rest"},
+        "summary": "detail"
+      },
+      "summaryAtNow": "00:45 · Rest · Evening run"
+    },
+    {
+      "case": "paused-task-with-running-independent-clock",
+      "record": {
+        "id": "workout-13",
+        "type": "standard",
+        "name": "Evening run",
+        "icon": "workout",
+        "state": "paused",
+        "headline": {"type": "clock", "mode": "countdown", "seconds": 45, "label": "Rest"},
+        "detail": {"type": "clock", "mode": "elapsed", "since": 1793699272, "label": "Total"},
+        "summary": "detail"
+      },
+      "summaryAtNow": "12:08 · Total · Evening run",
+      "summaryAfterOneSecond": "12:09 · Total · Evening run"
+    },
+    {
+      "case": "navigation-explicit-maneuver",
+      "record": {
+        "id": "route-home-4",
+        "type": "standard",
+        "name": "Home",
+        "icon": "navigation",
+        "headline": {"type": "value", "value": 200, "unit": "m", "symbol": "turn-right"},
+        "detail": {"type": "text", "text": "Oak Street"}
+      },
+      "summaryAtNow": "200 m · Oak Street · Home",
+      "symbolMeaning": "Turn right",
+      "textFallback": "Turn right · 200 m · Oak Street · Home"
+    },
+    {
+      "case": "recording",
+      "record": {
+        "id": "recording-29",
+        "type": "standard",
+        "name": "Voice recording",
+        "icon": "recording",
+        "headline": {"type": "clock", "mode": "elapsed", "since": 1793699272}
+      },
+      "summaryAtNow": "12:08 · Voice recording"
+    },
+    {
+      "case": "download-known-range",
+      "record": {
+        "id": "offline-map-job-51",
+        "type": "standard",
+        "name": "Offline map",
+        "icon": "download",
+        "headline": {"type": "value", "value": 68, "unit": "%", "range": {"max": 100}}
+      },
+      "summaryAtNow": "68% · Offline map",
+      "rangeFraction": 0.68
+    },
+    {
+      "case": "unknown-progress",
+      "record": {
+        "id": "upload-job-52",
+        "type": "standard",
+        "name": "Photo backup",
+        "icon": "download",
+        "headline": {"type": "text", "text": "Uploading"}
+      },
+      "summaryAtNow": "Uploading · Photo backup"
+    },
+    {
+      "case": "message",
+      "record": {
+        "id": "message-88",
+        "type": "standard",
+        "icon": "message",
+        "headline": {"type": "text", "text": "Petr"},
+        "detail": {"type": "text", "text": "I’m downstairs. Ready when you are?"}
+      },
+      "summaryAtNow": "Petr · I’m downstairs. Ready when you are?"
+    },
+    {
+      "case": "delivery",
+      "record": {
+        "id": "delivery-order-931",
+        "type": "standard",
+        "name": "Food delivery",
+        "icon": "delivery",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793700480, "label": "ETA"}
+      },
+      "summaryAtNow": "08:00 · ETA · Food delivery"
+    },
+    {
+      "case": "oven-temperature-and-time",
+      "record": {
+        "id": "oven-bake-13",
+        "type": "standard",
+        "name": "Bread",
+        "headline": {"type": "value", "value": 180, "unit": "°C"},
+        "detail": {"type": "clock", "mode": "countdown", "deadline": 1793700600, "label": "Remaining"},
+        "summary": "detail"
+      },
+      "summaryAtNow": "10:00 · Remaining · Bread"
+    },
+    {
+      "case": "score-with-match-clock",
+      "record": {
+        "id": "match-441",
+        "type": "standard",
+        "name": "Team A–Team B",
+        "headline": {"type": "value", "value": "2–1", "label": "Score"},
+        "detail": {"type": "clock", "mode": "elapsed", "since": 1793699700, "seconds": 2700, "label": "Match"},
+        "summary": "detail"
+      },
+      "summaryAtNow": "50:00 · Match · Team A–Team B"
+    },
+    {
+      "case": "long-timer",
+      "record": {
+        "id": "slow-cook-19",
+        "type": "standard",
+        "name": "Slow cook",
+        "icon": "timer",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793745296}
+      },
+      "summaryAtNow": "12:34:56 · Slow cook"
+    },
+    {
+      "case": "paused-visibility-is-fixed",
+      "record": {
+        "id": "tea-run-42",
+        "type": "standard",
+        "name": "Tea",
+        "icon": "timer",
+        "state": "paused",
+        "visibleUntil": 1793700270,
+        "headline": {"type": "clock", "mode": "countdown", "seconds": 120}
+      },
+      "summaryAtNow": "02:00 · Tea",
+      "summaryAfterOneSecond": "02:00 · Tea"
+    },
+    {
+      "case": "explicit-result",
+      "record": {
+        "id": "build-job-441",
+        "type": "standard",
+        "name": "Build",
+        "state": "completed",
+        "result": true,
+        "visibleUntil": 1793700300,
+        "headline": {"type": "text", "text": "Succeeded"}
+      },
+      "summaryAtNow": "Succeeded · Build"
+    },
+    {
+      "case": "labelled-static-detail",
+      "record": {
+        "id": "oven-mode-19",
+        "type": "standard",
+        "name": "Bread",
+        "headline": {"type": "value", "value": 180, "unit": "°C"},
+        "detail": {"type": "text", "text": "Auto", "label": "Mode"}
+      },
+      "summaryAtNow": "180°C · Mode: Auto · Bread"
+    },
+    {
+      "case": "independent-direction-symbols",
+      "record": {
+        "id": "route-22",
+        "type": "standard",
+        "name": "Home",
+        "icon": "navigation",
+        "headline": {"type": "value", "value": 200, "unit": "m", "symbol": "turn-right"},
+        "detail": {"type": "value", "value": 80, "unit": "m", "symbol": "turn-left"},
+        "summary": "detail"
+      },
+      "summaryAtNow": "80 m · Home",
+      "symbolMeaning": "Turn left"
+    }
+  ],
+  "rejectedExamples": [
+    {"reason": "Missing occurrence identity", "record": {"type": "standard", "headline": {"type": "text", "text": "Ready"}}},
+    {"reason": "No detail to select", "record": {"id": "x", "type": "standard", "summary": "detail", "headline": {"type": "text", "text": "Ready"}}},
+    {"reason": "Conflicting countdown forms", "record": {"id": "x", "type": "standard", "headline": {"type": "clock", "mode": "countdown", "deadline": 1793700100, "seconds": 100}}},
+    {"reason": "Range on a formatted value", "record": {"id": "x", "type": "standard", "headline": {"type": "value", "value": "2–1", "range": {"max": 100}}}},
+    {"reason": "Value outside its declared range", "record": {"id": "x", "type": "standard", "headline": {"type": "value", "value": 120, "unit": "%", "range": {"max": 100}}}},
+    {"reason": "Result visibility without terminal state", "record": {"id": "x", "type": "standard", "result": true, "headline": {"type": "text", "text": "Ready"}}},
+    {"reason": "Provider-selected layout", "record": {"id": "x", "type": "standard", "layout": "compact", "headline": {"type": "text", "text": "Ready"}}},
+    {"reason": "Media title missing", "record": {"id": "x", "type": "media", "artist": "The Midnight"}}
+  ],
+  "summaryNote": "Expected strings are complete semantic summaries before width fitting. Dynamic adds the optional symbol, reserves complete values, and truncates optional text at its end. These are not additional plugin payloads or rendered screen captures. Cases are independent; they are not one source reply."
+}

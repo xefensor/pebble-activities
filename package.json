@@ -1,6 +1,6 @@
 {
   "name": "pebble-activities",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Xef",
   "description": "Versioned activity publishing and consuming helpers for stock Pebble OS.",
   "main": "src/js/index.js",
@@ -19,7 +19,9 @@
     "src",
     "docs",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "summary.js",
+    "summary-view.js"
   ],
   "scripts": {
     "test": "node --test tests/*.test.js && python3 scripts/test-native.py",

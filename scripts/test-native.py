@@ -14,7 +14,8 @@ def main():
     compiler = os.environ.get("CC", "cc")
     with tempfile.TemporaryDirectory(prefix="pebble-activities-native-") as directory:
         for suite, implementation in [("activity", "pebble-activities"),
-                                      ("view", "activity-view")]:
+                                      ("view", "activity-view"),
+                                      ("summary", "activity-view")]:
             output = Path(directory) / (suite + "-tests")
             command = [compiler, "-std=c99", "-Wall", "-Wextra", "-Werror", "-pedantic",
                        "-I", str(ROOT / "include"),

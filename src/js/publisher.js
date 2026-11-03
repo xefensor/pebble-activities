@@ -168,4 +168,20 @@ function createProvider(options) {
   }
   return {source:source,handleSource:handleSource};
 }
-module.exports={DEFAULT_KEY:DEFAULT_KEY,MAX_RECORDS:MAX_RECORDS,createPublisher:createPublisher,createProvider:createProvider};
+function readSnapshots(options) {
+  options=options||{};var storage=storageOf(options),key=options.key||DEFAULT_KEY;
+  var raw=storage.getItem(key);if(raw===null||raw===undefined){return [];}
+  var value;try{value=JSON.parse(raw);}catch(ignored){throw new Error('INVALID_SNAPSHOT_STORAGE');}
+  if(!wire.object(value)||value.schemaVersion!==1){throw new Error('INVALID_SNAPSHOT_STORAGE');}
+  var source=Array.isArray(value.slots)?value.slots:[value.card];
+  if(source.length>MAX_RECORDS){throw new Error('INVALID_SNAPSHOT_STORAGE');}
+  var seen=Object.create(null),result=[];
+  source.forEach(function(input){
+    if(input===null||input===undefined){return;}
+    var card=record(input,options.pluginUuid);
+    if(!card||card.private||seen[card.id]){throw new Error('INVALID_SNAPSHOT_STORAGE');}
+    seen[card.id]=true;result.push(card);
+  });
+  return result;
+}
+module.exports={readSnapshots:readSnapshots,DEFAULT_KEY:DEFAULT_KEY,MAX_RECORDS:MAX_RECORDS,createPublisher:createPublisher,createProvider:createProvider};

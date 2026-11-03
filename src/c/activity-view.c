@@ -6,7 +6,7 @@
 typedef struct {
   size_t offset, next, pool, image;
   uint16_t pool_bytes;
-  uint8_t id_bytes;
+  uint8_t id_bytes, header_bytes;
 } RecordLocation;
 
 static uint16_t read16(const uint8_t *p) {
@@ -94,7 +94,7 @@ static bool valid_ref(const uint8_t *pool, size_t pool_bytes, unsigned offset,
 
 static bool valid_datum(const uint8_t *p, const uint8_t *pool, size_t pool_bytes,
                          uint32_t source_observed, uint32_t source_valid,
-                         bool required) {
+                         bool required, bool summary_profile) {
   if (!p[0]) return !required && zero_bytes(p, PAV_DATUM_BYTES);
   if (p[0] > PAV_CLOCK || (p[1] & ~15u) || read16(p + 2)) return false;
   const uint32_t observed = read32(p + 4), valid = read32(p + 8);
@@ -102,7 +102,8 @@ static bool valid_datum(const uint8_t *p, const uint8_t *pool, size_t pool_bytes
   const unsigned text_offset = read16(p + 20), text_length = read16(p + 22);
   const unsigned label_offset = read16(p + 24), label_length = read16(p + 26);
   if (!observed || observed > source_observed || valid < observed || valid > source_valid ||
-      !label_length || label_length > PAV_LABEL_BYTES || text_length > PAV_TEXT_BYTES ||
+      (!summary_profile && !label_length) ||
+      label_length > (summary_profile ? 32u : PAV_LABEL_BYTES) || text_length > PAV_TEXT_BYTES ||
       !valid_ref(pool, pool_bytes, label_offset, label_length) ||
       !valid_ref(pool, pool_bytes, text_offset, text_length)) return false;
   if (p[0] != PAV_CLOCK)
@@ -111,33 +112,53 @@ static bool valid_datum(const uint8_t *p, const uint8_t *pool, size_t pool_bytes
 }
 
 static bool locate_record(const uint8_t *bytes, size_t length, size_t offset,
-                           RecordLocation *out) {
-  if (offset > length || length - offset < PAV_RECORD_HEADER_BYTES) return false;
+                           RecordLocation *out, bool summary_profile) {
+  const unsigned header_bytes = summary_profile ? PAV_SUMMARY_RECORD_HEADER_BYTES : PAV_RECORD_HEADER_BYTES;
+  if (offset > length || length - offset < header_bytes) return false;
   const uint8_t *p = bytes + offset;
   const size_t record_bytes = read16(p), pool_bytes = read16(p + 22);
   const unsigned flags = p[3], state = p[2], id_bytes = p[16];
   const unsigned width = p[17], height = p[18], meter_kind = p[19];
   const size_t pixels = read16(p + 20);
-  if (record_bytes < PAV_RECORD_HEADER_BYTES || record_bytes > length - offset ||
+  if (record_bytes < header_bytes || record_bytes > length - offset ||
       state < PAV_ACTIVE || state > PAV_CANCELLED || (flags & ~15u) ||
       ((flags & PAV_PRIVATE) && (flags & PAV_SOURCE_UNCONFIRMED)) ||
       !read32(p + 4) || !read32(p + 8) || read32(p + 12) < read32(p + 8) ||
       !id_bytes || id_bytes > PAV_ID_BYTES || p[31] || !pool_bytes ||
-      pool_bytes > PAV_STRING_BYTES || meter_kind > PAV_METER_LEVEL || p[30] > 1)
+      pool_bytes > (summary_profile ? PAV_SUMMARY_STRING_BYTES : PAV_STRING_BYTES) || meter_kind > PAV_METER_LEVEL || p[30] > 1)
     return false;
-  const size_t pool = offset + PAV_RECORD_HEADER_BYTES + PAV_PROVIDER_BYTES + id_bytes;
+  const size_t pool = offset + header_bytes + PAV_PROVIDER_BYTES + id_bytes;
   if (pool > offset + record_bytes || pool_bytes > offset + record_bytes - pool ||
-      !provider_uuid(p + PAV_RECORD_HEADER_BYTES) ||
-      !utf8(p + PAV_RECORD_HEADER_BYTES + PAV_PROVIDER_BYTES, id_bytes) ||
+      !provider_uuid(p + header_bytes) ||
+      !utf8(p + header_bytes + PAV_PROVIDER_BYTES, id_bytes) ||
       !valid_pool(bytes + pool, pool_bytes) || read16(p + 26) > PAV_CAPTION_BYTES ||
       !valid_ref(bytes + pool, pool_bytes, read16(p + 24), read16(p + 26)) ||
-      !valid_datum(p + 32, bytes + pool, pool_bytes, read32(p + 8), read32(p + 12), true) ||
-      !valid_datum(p + 60, bytes + pool, pool_bytes, read32(p + 8), read32(p + 12), false))
+      !valid_datum(p + 32, bytes + pool, pool_bytes, read32(p + 8), read32(p + 12), true, summary_profile) ||
+      !valid_datum(p + 60, bytes + pool, pool_bytes, read32(p + 8), read32(p + 12), false, summary_profile))
     return false;
   if (!meter_kind) {
     if (read16(p + 28) || p[30]) return false;
   } else if (p[p[30] ? 60 : 32] != PAV_VALUE) return false;
 
+  if (summary_profile) {
+    const unsigned presentation = p[88], compact = p[90];
+    if (presentation < PAV_PRESENTATION_TEXT || presentation > PAV_PRESENTATION_RANGED ||
+        p[89] > PAV_SYMBOL_DELIVERY || compact > 1 || (compact && !p[60]) ||
+        (p[91] & 0xc0u) || (p[91] & 7u) > PAV_DIRECTION_UTURN ||
+        ((p[91] >> 3) & 7u) > PAV_DIRECTION_UTURN ||
+        ((p[91] & 7u) && p[32] != PAV_VALUE) ||
+        (((p[91] >> 3) & 7u) && p[60] != PAV_VALUE) ||
+        !valid_ref(bytes + pool, pool_bytes, read16(p + 92), read16(p + 94))) return false;
+    if ((presentation == PAV_PRESENTATION_TEXT && p[32] != PAV_TEXT) ||
+        (presentation == PAV_PRESENTATION_CLOCK && p[32] != PAV_CLOCK) ||
+        (presentation == PAV_PRESENTATION_VALUE && p[32] != PAV_VALUE) ||
+        (presentation == PAV_PRESENTATION_RANGED &&
+         (p[32] != PAV_VALUE || !meter_kind || p[30])) ||
+        (presentation == PAV_PRESENTATION_MEDIA &&
+         (p[32] != PAV_TEXT || (p[60] && p[60] != PAV_TEXT) || compact || meter_kind)))
+      return false;
+    if (presentation != PAV_PRESENTATION_MEDIA && !zero_bytes(p + 96, 8)) return false;
+  }
   const size_t image = pool + pool_bytes;
   size_t expected = image - offset;
   if (flags & PAV_HAS_IMAGE) {
@@ -156,6 +177,7 @@ static bool locate_record(const uint8_t *bytes, size_t length, size_t offset,
   out->offset = offset; out->next = offset + record_bytes;
   out->pool = pool; out->pool_bytes = (uint16_t)pool_bytes;
   out->image = image; out->id_bytes = (uint8_t)id_bytes;
+  out->header_bytes = (uint8_t)header_bytes;
   return true;
 }
 
@@ -171,14 +193,24 @@ static void decode_record(const uint8_t *bytes, const RecordLocation *where,
                            PavCard *card) {
   const uint8_t *p = bytes + where->offset;
   memset(card, 0, sizeof(*card));
-  memcpy(card->provider, p + PAV_RECORD_HEADER_BYTES, PAV_PROVIDER_BYTES);
-  memcpy(card->id, p + PAV_RECORD_HEADER_BYTES + PAV_PROVIDER_BYTES, where->id_bytes);
+  memcpy(card->provider, p + where->header_bytes, PAV_PROVIDER_BYTES);
+  memcpy(card->id, p + where->header_bytes + PAV_PROVIDER_BYTES, where->id_bytes);
   card->source_state = p[2]; card->flags = p[3];
   card->source_revision = read32(p + 4); card->source_observed_at = read32(p + 8);
   card->source_valid_until = read32(p + 12);
   card->caption_offset = read16(p + 24); card->caption_length = read16(p + 26);
   card->meter = read16(p + 28); card->meter_source = p[30]; card->meter_kind = p[19];
   decode_datum(p + 32, &card->main); decode_datum(p + 60, &card->support);
+  if (where->header_bytes == PAV_SUMMARY_RECORD_HEADER_BYTES) {
+    card->presentation = p[88]; card->identity_symbol = p[89]; card->compact_item = p[90];
+    card->directions[0] = p[91] & 7u; card->directions[1] = (p[91] >> 3) & 7u;
+    card->qualifier_offset = read16(p + 92); card->qualifier_length = read16(p + 94);
+    memcpy(card->visual_token, p + 96, 8);
+  } else {
+    card->presentation = card->main.type == PAV_CLOCK ? PAV_PRESENTATION_CLOCK :
+        card->main.type == PAV_VALUE ? (card->meter_kind && !card->meter_source ?
+        PAV_PRESENTATION_RANGED : PAV_PRESENTATION_VALUE) : PAV_PRESENTATION_TEXT;
+  }
   memcpy(card->strings, bytes + where->pool, where->pool_bytes);
   if (card->flags & PAV_HAS_IMAGE) {
     card->width = p[17]; card->height = p[18]; card->pixel_bytes = read16(p + 20);
@@ -189,18 +221,19 @@ static void decode_record(const uint8_t *bytes, const RecordLocation *where,
 
 bool pav_decode(const uint8_t *bytes, size_t length, PavSnapshot *output) {
   if (!bytes || length < PAV_HEADER_BYTES || length > PAV_MAX_PACKET_BYTES ||
-      memcmp(bytes, "ACT2", 4) || bytes[4] != PAV_WIRE_VERSION ||
+      !((!memcmp(bytes, "ACT2", 4) && bytes[4] == PAV_WIRE_VERSION) ||
+        (!memcmp(bytes, "ACT3", 4) && bytes[4] == PAV_SUMMARY_WIRE_VERSION)) ||
       bytes[5] > PAV_MAX_CARDS || read16(bytes + 6) != length || bytes[10] || bytes[11] ||
       read32(bytes + 12) < 2 || !read32(bytes + 16) || !read32(bytes + 20) ||
       read16(bytes + 8) != pav_packet_crc16(bytes, length)) return false;
   RecordLocation records[PAV_MAX_CARDS];
   size_t offset = PAV_HEADER_BYTES;
   for (unsigned i = 0; i < bytes[5]; ++i) {
-    if (!locate_record(bytes, length, offset, &records[i])) return false;
+    if (!locate_record(bytes, length, offset, &records[i], bytes[4] == PAV_SUMMARY_WIRE_VERSION)) return false;
     offset = records[i].next;
     for (unsigned j = 0; j < i; ++j) {
-      const size_t a = records[i].offset + PAV_RECORD_HEADER_BYTES;
-      const size_t b = records[j].offset + PAV_RECORD_HEADER_BYTES;
+      const size_t a = records[i].offset + records[i].header_bytes;
+      const size_t b = records[j].offset + records[j].header_bytes;
       if (records[i].id_bytes == records[j].id_bytes &&
           !memcmp(bytes + a, bytes + b, PAV_PROVIDER_BYTES + records[i].id_bytes))
         return false;
@@ -210,7 +243,7 @@ bool pav_decode(const uint8_t *bytes, size_t length, PavSnapshot *output) {
   if (output) {
     memset(output, 0, sizeof(*output));
     output->session = read32(bytes + 12); output->view_sequence = read32(bytes + 16);
-    output->sent_at = read32(bytes + 20); output->count = bytes[5];
+    output->sent_at = read32(bytes + 20); output->count = bytes[5]; output->wire_version = bytes[4];
     for (unsigned i = 0; i < output->count; ++i) decode_record(bytes, &records[i], &output->items[i]);
   }
   return true;
@@ -308,7 +341,8 @@ bool pav_state_receive(PavState *state, const uint8_t *bytes, size_t length,
     const uint8_t *p = bytes + offset;
     for (unsigned j = 0; j < state->snapshot.count; ++j) {
       const PavCard *old = &state->snapshot.items[j];
-      const uint8_t *identity = p + PAV_RECORD_HEADER_BYTES;
+      const uint8_t *identity = p + (bytes[4] == PAV_SUMMARY_WIRE_VERSION ?
+          PAV_SUMMARY_RECORD_HEADER_BYTES : PAV_RECORD_HEADER_BYTES);
       if (strlen(old->id) != p[16] ||
           memcmp(old->provider, identity, PAV_PROVIDER_BYTES) ||
           memcmp(old->id, identity + PAV_PROVIDER_BYTES, p[16])) continue;
@@ -401,6 +435,10 @@ static const char *pool_text(const PavCard *card, uint16_t offset, uint16_t leng
 
 const char *pav_caption(const PavCard *card) {
   return card ? pool_text(card, card->caption_offset, card->caption_length) : "";
+}
+
+const char *pav_qualifier(const PavCard *card) {
+  return card ? pool_text(card, card->qualifier_offset, card->qualifier_length) : "";
 }
 
 const char *pav_text(const PavCard *card, const PavDatum *datum) {

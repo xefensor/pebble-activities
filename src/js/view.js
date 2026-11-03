@@ -20,16 +20,16 @@ var PROPERTIES=Object.keys(SOURCE_PROPERTIES);
 function bool(value){return value===undefined||typeof value==='boolean';}
 function finite(value){return typeof value==='number'&&isFinite(value);}
 function clean(value,limit){return wire.text(value,limit);}
-function numericText(value,unit){return String(value)+(unit?(/^(%|°C|°F)$/.test(unit)?'':' ')+unit:'');}
+function numericText(value,unit){return String(value)+(unit?(/^(%|°|°C|°F)$/.test(unit)?'':' ')+unit:'');}
 function scalar(properties,name,shape,field){return properties&&properties[name]&&properties[name][shape]?properties[name][shape][field||'value']:undefined;}
 function string(properties,name){var value=scalar(properties,name,'longText','text');return value===undefined?scalar(properties,name,'shortText','text'):value;}
-function datum(input,card){
+function datum(input,card,summaryProfile){
   if(!wire.object(input)||!Object.prototype.hasOwnProperty.call(TYPES,input.type)||!bool(input.retain)||!bool(input.estimated)||!bool(input.running)){return null;}
   var result={type:input.type,label:clean(input.label,LIMITS.label),text:'',
     observedAt:input.observedAt===undefined?card.observedAt:input.observedAt,
     validUntil:input.validUntil===undefined?card.validUntil:input.validUntil,
     retain:input.retain===true,estimated:input.estimated===true};
-  if(!result.label||!wire.integer(result.observedAt,1,card.observedAt)||!wire.integer(result.validUntil,result.observedAt,card.validUntil)){return null;}
+  if((!summaryProfile&&!result.label)||!wire.integer(result.observedAt,1,card.observedAt)||!wire.integer(result.validUntil,result.observedAt,card.validUntil)){return null;}
   if(input.type==='clock'){
     result.mode=input.mode;result.running=input.running===true;
     result.baseSeconds=input.baseSeconds===undefined?0:input.baseSeconds;
@@ -61,7 +61,7 @@ function poolFor(card){
   if(card.support){refs.support={label:add(card.support.label),text:add(card.support.text)};}
   return {bytes:bytes,refs:refs};
 }
-function normalize(input,provider){
+function normalize(input,provider,summaryProfile){
   if(!wire.object(input)||!wire.uuid(provider||input.provider)||!wire.identity(input.id,64)||!wire.identity(input.kind,24)||
       !wire.integer(input.revision,1,MAX)||!wire.integer(input.observedAt,1,MAX)||!wire.integer(input.validUntil,input.observedAt,MAX)||
       !Object.prototype.hasOwnProperty.call(wire.STATES,input.state)||!bool(input.private)||!bool(input.unconfirmed)||!bool(input.showTerminal)){return null;}
@@ -69,8 +69,8 @@ function normalize(input,provider){
     observedAt:input.observedAt,validUntil:input.validUntil,private:input.private!==false||kind==='music'||kind==='notification'||kind==='notifications',
     unconfirmed:input.unconfirmed===true,showTerminal:input.showTerminal===true,caption:clean(input.caption===undefined?input.name:input.caption,LIMITS.caption)};
   if(card.private&&card.unconfirmed){return null;}
-  card.main=datum(input.main,card);if(!card.main){return null;}
-  card.support=input.support===undefined||input.support===null?null:datum(input.support,card);
+  card.main=datum(input.main,card,summaryProfile);if(!card.main){return null;}
+  card.support=input.support===undefined||input.support===null?null:datum(input.support,card,summaryProfile);
   if(input.support!==undefined&&input.support!==null&&!card.support){return null;}
   card.meter=null;
   if(input.meter!==undefined&&input.meter!==null){
@@ -86,7 +86,7 @@ function normalize(input,provider){
     if(m.min!==undefined){card.meter.min=m.min;card.meter.max=m.max;}
   }
   if(input.image!==undefined&&input.image!==null){card.image=wire.image(input.image);if(!card.image){return null;}}
-  if(poolFor(card).bytes.length>LIMITS.pool){return null;}
+  if(!summaryProfile&&poolFor(card).bytes.length>LIMITS.pool){return null;}
   return card;
 }
 function fromLegacy(input,options){

@@ -1,0 +1,147 @@
+{
+  "status": "Proposed Dashboard bindings and model scenarios; no SDK operations are invoked",
+  "now": 1793700000,
+  "providers": {
+    "washer": "11111111-1111-4111-8111-111111111111",
+    "phone": "22222222-2222-4222-8222-222222222222",
+    "timer": "33333333-3333-4333-8333-333333333333",
+    "music": "44444444-4444-4444-8444-444444444444",
+    "light": "55555555-5555-4555-8555-555555555555"
+  },
+  "note": "All provider UUIDs and domain action names here are synthetic fixtures. Media command names illustrate the verified built-in Music operations. These are not new installed plugins or implemented Timer controls.",
+  "pinnedCards": [
+    {
+      "id": "battery-card",
+      "content": {"kind": "reading", "plugin": "22222222-2222-4222-8222-222222222222", "category": "phone", "item": "state", "instanceId": "phone", "property": "battery", "shape": "numericValue"}
+    },
+    {
+      "id": "washer-device",
+      "content": {"kind": "reading", "plugin": "11111111-1111-4111-8111-111111111111", "category": "home", "item": "appliance", "instanceId": "washer-1", "property": "state", "shape": "shortText"},
+      "followLinkedActivity": true,
+      "controls": [{"plugin": "11111111-1111-4111-8111-111111111111", "action": "start_cycle", "args": {"instanceId": "washer-1"}, "label": "Start"}]
+    },
+    {
+      "id": "washer-temperature",
+      "content": {"kind": "reading", "plugin": "11111111-1111-4111-8111-111111111111", "category": "home", "item": "appliance", "instanceId": "washer-1", "property": "temperature", "shape": "numericValue"}
+    },
+    {
+      "id": "kitchen-light",
+      "content": {"kind": "reading", "plugin": "55555555-5555-4555-8555-555555555555", "category": "home", "item": "light", "instanceId": "kitchen", "property": "on", "shape": "boolean"},
+      "controls": [{"plugin": "55555555-5555-4555-8555-555555555555", "action": "set_on", "args": {"item": "light", "instanceId": "kitchen", "on": false}, "label": "Turn off"}]
+    },
+    {
+      "id": "next-timer",
+      "content": {"kind": "activity", "plugin": "33333333-3333-4333-8333-333333333333", "select": "next-running-countdown"}
+    },
+    {
+      "id": "now-playing",
+      "content": {"kind": "activity", "plugin": "44444444-4444-4444-8444-444444444444"}
+    },
+    {
+      "id": "find-phone",
+      "controls": [{"plugin": "22222222-2222-4222-8222-222222222222", "action": "find_phone", "args": {}, "label": "Find phone"}]
+    }
+  ],
+  "records": {
+    "wash": {
+      "provider": "11111111-1111-4111-8111-111111111111",
+      "record": {
+        "id": "wash-run-42", "type": "standard", "name": "Cotton cycle",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793701390},
+        "entityRef": {"category": "home", "item": "appliance", "instanceId": "washer-1"},
+        "actions": [
+          {"id": "pause", "label": "Pause", "semantic": "pause", "action": "pause_cycle", "args": {"instanceId": "washer-1", "runId": "wash-run-42"}},
+          {"id": "stop", "label": "Stop", "semantic": "stop", "action": "stop_cycle", "args": {"instanceId": "washer-1", "runId": "wash-run-42"}}
+        ]
+      }
+    },
+    "maintenance": {
+      "provider": "11111111-1111-4111-8111-111111111111",
+      "record": {
+        "id": "maintenance-2", "type": "standard", "name": "Filter check",
+        "headline": {"type": "text", "text": "Check filter"},
+        "entityRef": {"category": "home", "item": "appliance", "instanceId": "washer-1"}
+      }
+    },
+    "other-washer": {
+      "provider": "11111111-1111-4111-8111-111111111111",
+      "record": {
+        "id": "wash-run-99", "type": "standard", "name": "Cotton cycle",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793701200},
+        "entityRef": {"category": "home", "item": "appliance", "instanceId": "washer-2"}
+      }
+    },
+    "wash-readonly": {
+      "provider": "11111111-1111-4111-8111-111111111111",
+      "record": {
+        "id": "wash-run-43", "type": "standard", "name": "Cotton cycle",
+        "headline": {"type": "clock", "mode": "countdown", "deadline": 1793701000},
+        "entityRef": {"category": "home", "item": "appliance", "instanceId": "washer-1"}
+      }
+    },
+    "same-reference-other-provider": {
+      "provider": "55555555-5555-4555-8555-555555555555",
+      "record": {
+        "id": "foreign-run-42", "type": "standard", "name": "Cotton cycle",
+        "headline": {"type": "text", "text": "Running"},
+        "entityRef": {"category": "home", "item": "appliance", "instanceId": "washer-1"}
+      }
+    },
+    "timer-later": {
+      "provider": "33333333-3333-4333-8333-333333333333",
+      "record": {"id": "timer-run-11", "type": "standard", "name": "Tea", "icon": "timer", "headline": {"type": "clock", "mode": "countdown", "deadline": 1793700300}}
+    },
+    "timer-sooner": {
+      "provider": "33333333-3333-4333-8333-333333333333",
+      "record": {"id": "timer-run-12", "type": "standard", "name": "Pasta", "icon": "timer", "headline": {"type": "clock", "mode": "countdown", "deadline": 1793700060}}
+    },
+    "timer-paused": {
+      "provider": "33333333-3333-4333-8333-333333333333",
+      "record": {"id": "timer-run-13", "type": "standard", "name": "Rest", "icon": "timer", "state": "paused", "headline": {"type": "clock", "mode": "countdown", "seconds": 10}}
+    },
+    "timer-zero": {
+      "provider": "33333333-3333-4333-8333-333333333333",
+      "record": {"id": "timer-run-14", "type": "standard", "name": "Due", "icon": "timer", "headline": {"type": "clock", "mode": "countdown", "deadline": 1793699999}}
+    },
+    "music": {
+      "provider": "44444444-4444-4444-8444-444444444444",
+      "record": {
+        "id": "player-session-7", "type": "media", "title": "A Moment Apart", "artist": "ODESZA", "itemId": "track-7", "playback": "playing",
+        "actions": [
+          {"id": "previous", "label": "Previous", "semantic": "previous", "action": "previous_track", "args": {}},
+          {"id": "playback", "label": "Pause", "semantic": "pause", "action": "set_playing", "args": {"on": false}},
+          {"id": "next", "label": "Next", "semantic": "next", "action": "next_track", "args": {}}
+        ]
+      }
+    }
+  },
+  "compositionCases": [
+    {"case": "idle-pins-remain", "records": [], "expect": {"washer-device": {"mode": "reading", "actions": ["start_cycle"]}, "next-timer": {"mode": "empty", "actions": []}}, "live": []},
+    {"case": "linked-task-takes-over", "records": ["wash"], "expect": {"washer-device": {"mode": "activity", "record": "wash-run-42", "actions": ["pause_cycle", "stop_cycle"]}, "washer-temperature": {"mode": "reading", "actions": []}}, "live": []},
+    {"case": "multiple-linked-tasks", "records": ["wash", "maintenance"], "expect": {"washer-device": {"mode": "activity", "record": "wash-run-42", "actions": ["pause_cycle", "stop_cycle"]}}, "live": ["maintenance-2"]},
+    {"case": "same-name-other-entity", "records": ["other-washer"], "expect": {"washer-device": {"mode": "reading", "actions": ["start_cycle"]}}, "live": ["wash-run-99"]},
+    {"case": "same-reference-other-provider", "records": ["same-reference-other-provider"], "expect": {"washer-device": {"mode": "reading", "actions": ["start_cycle"]}}, "live": ["foreign-run-42"]},
+    {"case": "activity-without-actions-is-readonly", "records": ["wash-readonly"], "expect": {"washer-device": {"mode": "activity", "record": "wash-run-43", "actions": []}}, "live": []},
+    {"case": "next-timer-uses-future-running-deadline", "records": ["timer-paused", "timer-later", "timer-sooner", "timer-zero"], "expect": {"next-timer": {"mode": "activity", "record": "timer-run-12", "actions": []}}, "live": ["timer-run-13", "timer-run-11", "timer-run-14"]},
+    {"case": "media-keeps-real-sdk-controls", "records": ["music"], "expect": {"now-playing": {"mode": "activity", "record": "player-session-7", "actions": ["previous_track", "set_playing", "next_track"]}}, "live": []},
+    {"case": "withdrawn-task-restores-base", "previousRecords": ["wash"], "records": [], "expect": {"washer-device": {"mode": "reading", "actions": ["start_cycle"]}}, "live": []},
+    {"case": "source-order-selects-linked-task", "records": ["maintenance", "wash"], "expect": {"washer-device": {"mode": "activity", "record": "maintenance-2", "actions": []}}, "live": ["wash-run-42"]}
+  ],
+  "guardCases": [
+    {"case": "hybrid-ended-with-stop-menu-open", "openedOccurrence": "wash-run-42", "overviewModeAfterEnd": "reading", "expected": "old-detail-ended-no-automatic-start-retarget"},
+    {"case": "detail-occurrence-ended", "openedOccurrence": "timer-run-11", "currentOccurrence": "timer-run-12", "expected": "ended-screen-and-invalid-controls"},
+    {"case": "control-timeout", "sdkOutcome": "TIMEOUT", "expected": "unknown-outcome-refresh-no-automatic-retry"},
+    {"case": "same-command-retransmitted", "requestIds": [17, 17], "expectedInvocations": 1},
+    {"case": "old-command-result-evicted", "requestId": 17, "acceptedHighWater": 40, "resultCached": false, "expected": "reject-no-invocation"},
+    {"case": "provider-fallback", "requestedProvider": "11111111-1111-4111-8111-111111111111", "returnedProvider": "55555555-5555-4555-8555-555555555555", "expected": "unavailable-exact-pin"},
+    {"case": "reading-refresh-only", "bindingChanged": false, "expected": "keep-control-token"},
+    {"case": "off-page-window", "windowScope": "overview-page-2", "expected": "do-not-retract-off-page-source-records"}
+  ],
+  "rejectedBindings": [
+    {"reason": "Source action cannot override its provider", "action": {"id": "x", "label": "Next", "plugin": "55555555-5555-4555-8555-555555555555", "action": "next_track", "args": {}}},
+    {"reason": "Missing action label", "action": {"id": "x", "action": "next_track", "args": {}}},
+    {"reason": "Arguments must be object", "action": {"id": "x", "label": "Next", "action": "next_track", "args": []}},
+    {"reason": "No arbitrary enabled expression", "action": {"id": "x", "label": "Next", "action": "next_track", "args": {}, "enabled": "playing"}},
+    {"reason": "Entity reference cannot override provider", "entityRef": {"plugin": "55555555-5555-4555-8555-555555555555", "category": "home", "item": "appliance", "instanceId": "washer-1"}}
+  ]
+}

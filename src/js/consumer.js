@@ -3,6 +3,7 @@
 var wire=require('./wire');
 var view=require('./view');
 var activity=require('./activity');
+var summary=require('./summary'),summaryView=require('./summary-view');
 var PROPERTIES=['schema_version','kind','state','clock','revision','name','main','footer','observed_at','valid_until','deadline','duration','clock_at','private','unconfirmed','value','artwork'];
 function scalar(p,name,shape,field) {return p && p[name] && p[name][shape] ? p[name][shape][field||'value'] : undefined;}
 function string(p,name) {var v=scalar(p,name,'longText','text');return v===undefined?scalar(p,name,'shortText','text'):v;}
@@ -23,8 +24,9 @@ function sourceItem(plugin,format) {
   var items=[];
   plugin.sources.forEach(function(source){if(source.category===wire.CATEGORY&&Array.isArray(source.items)&&source.properties&&
     Array.isArray(source.properties.schema_version)&&source.properties.schema_version.indexOf('numericValue')>=0){items=items.concat(source.items);}});
-  return format===2&&items.indexOf(activity.ITEM)>=0?activity.ITEM:
-    format===2&&items.indexOf(view.ITEM)>=0?view.ITEM:items.indexOf(wire.ITEM)>=0?wire.ITEM:null;
+  return format>=3&&items.indexOf(summary.ITEM)>=0?summary.ITEM:
+    format>=2&&items.indexOf(activity.ITEM)>=0?activity.ITEM:
+    format>=2&&items.indexOf(view.ITEM)>=0?view.ITEM:items.indexOf(wire.ITEM)>=0?wire.ITEM:null;
 }
 function compatible(plugin,format) {
   return !!sourceItem(plugin,format);
@@ -33,12 +35,12 @@ function errorCode(error) {return error && typeof error.code==='string' && /^[A-
 function clone(value) {return JSON.parse(JSON.stringify(value));}
 module.exports=function createActivities(options) {
   options=options||{};
-  var nativeFormat=options.nativeFormat===2?2:1,codec=nativeFormat===2?view:wire;
+  var nativeFormat=options.nativeFormat===3?3:options.nativeFormat===2?2:1,codec=nativeFormat===3?summaryView:nativeFormat===2?view:wire;
   var pebble=options.pebble||{}, now=options.now||Date.now, later=options.later||setTimeout, cancel=options.cancelLater||clearTimeout;
   var keys=options.keys||{}, send=options.send, groups=Object.create(null), session=0, sequence=0, generation=0;
   var stopped=false,connected=true,enabled=true,available=typeof pebble.enumeratePlugins==='function' && typeof pebble.subscribeToSource==='function';
   var expiryTimer=null,discoveryTimer=null,retryTimer=null,bootTimer=null,lastError='',bootRequested=false,bootAttempts=0,failureCount=0,seenOrder=0,enumerated=false;
-  var revisions=Object.create(null), orders=Object.create(null), lastSignature='',currentSettings={},installed=[];
+  var revisions=Object.create(null), orders=Object.create(null), lastSignature='',currentSettings={},installed=[],lastView=null;
   function seconds(){return Math.max(1,Math.floor(now()/1000));}
   function key(name){return keys[name]===undefined?name:keys[name];}
   function readSettings(){var s=typeof options.getSettings==='function'?options.getSettings():{};return s&&typeof s==='object'?s:{};}
@@ -48,8 +50,8 @@ module.exports=function createActivities(options) {
   function stopGroup(group){if(group.handle && typeof group.handle.unsubscribe==='function'){try{group.handle.unsubscribe();}catch(ignored){}}group.handle=null;group.generation++;}
   function accepted(card){try{return typeof options.acceptActivity!=='function'||options.acceptActivity(card)!==false;}catch(ignored){return false;}}
   function visible(card,t){return card.validUntil>t&&
-    (nativeFormat!==2||card.main.validUntil>t&&(!card.unconfirmed||!card.private&&card.main.retain))&&
-    ((card.state!=='completed'&&card.state!=='cancelled')||nativeFormat===2&&card.showTerminal);}
+    (nativeFormat<2||card.main.validUntil>t&&(!card.unconfirmed||!card.private&&card.main.retain))&&
+    ((card.state!=='completed'&&card.state!=='cancelled')||nativeFormat>=2&&card.showTerminal);}
   function cleanGroup(provider){var group=groups[provider];if(!group){return;}stopGroup(group);group.cards=[];delete groups[provider];}
   function catalogue(){
     var t=seconds(), result=[];
@@ -69,7 +71,7 @@ module.exports=function createActivities(options) {
     function retry(){if(bootTimer!==null){cancel(bootTimer);}bootTimer=later(function(){bootTimer=null;if(!session&&!stopped&&connected&&enabled){bootRequested=false;requestBootstrap();}},2000);}
     try{send(payload,retry,function(){bootRequested=false;retry();});}catch(ignored){bootRequested=false;retry();}
   }
-  function publish(force){
+  function publish(force,afterAccepted){
     if(stopped || !connected || !enabled){return;}
     scheduleExpiry();notify();
     if(!session){requestBootstrap();return;}
@@ -79,22 +81,38 @@ module.exports=function createActivities(options) {
     sequence=sequence===wire.MAX_EPOCH?1:sequence+1;
     if(typeof send!=='function'){return;}
     var revision=sequence,payload={};
-    payload[key('ACTIVITY_DATA')]=codec.encode(cards,{session:session,revision:revision,sentAt:seconds()});
+    var sentAt=seconds();payload[key('ACTIVITY_DATA')]=codec.encode(cards,{session:session,revision:revision,sentAt:sentAt});
+    lastView={session:session,viewSequence:revision,sequence:revision,sentAt:sentAt,cards:clone(cards)};
+    if(typeof options.onView==='function'){options.onView(clone(lastView));}
     if(retryTimer!==null){cancel(retryTimer);retryTimer=null;}
-    try{send(payload,function(){if(revision===sequence){failureCount=0;}},function(error){
+    try{send(payload,function(){
+      if(revision===sequence){failureCount=0;}
+      // Any acknowledged view excluding a resetting provider is a valid clear
+      // barrier, including one that superseded the original queued clear.
+      Object.keys(groups).forEach(function(provider){
+        var group=groups[provider];
+        if(!group.rebinding||cards.some(function(c){return c.provider===provider;})){return;}
+        var pending=group.pendingReset;group.pendingReset=null;group.rebinding=false;
+        var needsRebind=group.pendingRebind;group.pendingRebind=false;
+        if(group.pendingMode!=='snapshot'){Object.keys(revisions).forEach(function(id){if(id.indexOf(provider+'|')===0){delete revisions[id];}});}
+        if(needsRebind){bind(provider,group.item);}
+        else if(pending){receive(group,pending,true);}
+      });
+      if(typeof afterAccepted==='function'){afterAccepted();}
+    },function(error){
       if(stopped||!connected||!enabled||revision!==sequence||error && error.code==='SUPERSEDED'){return;}
       if(++failureCount<3){retryTimer=later(function(){retryTimer=null;publish(true);},2000);}
     });}catch(ignored){if(++failureCount<3){retryTimer=later(function(){retryTimer=null;publish(true);},2000);}}
   }
   function uncertain(group){
     group.cards=group.cards.filter(function(card){return !card.private&&card.validUntil>seconds()&&
-      (nativeFormat===2?card.main.retain&&card.main.validUntil>seconds():card.clock!=='none');}).map(function(card){var copy=clone(card);copy.unconfirmed=true;return copy;});
+      (nativeFormat>=2?card.main.retain&&card.main.validUntil>seconds():card.clock!=='none');}).map(function(card){var copy=clone(card);copy.unconfirmed=true;return copy;});
   }
   function expire(){
     var t=seconds(), changed=false;
     Object.keys(groups).forEach(function(provider){
       var group=groups[provider],before=JSON.stringify(group.cards);
-      group.cards=group.cards.filter(function(card){return card.validUntil>t&&(nativeFormat!==2||card.main.validUntil>t);});
+      group.cards=group.cards.filter(function(card){return card.validUntil>t&&(nativeFormat<2||card.main.validUntil>t);});
       if(group.expiresAt!==null && group.expiresAt<=t){group.expiresAt=null;group.error='SOURCE_EXPIRED';uncertain(group);}
       if(before!==JSON.stringify(group.cards)){changed=true;}
     });
@@ -104,39 +122,71 @@ module.exports=function createActivities(options) {
     if(expiryTimer!==null){cancel(expiryTimer);expiryTimer=null;}
     if(stopped||!connected||!enabled){return;}
     var t=seconds(),end=Infinity;
-    Object.keys(groups).forEach(function(provider){var group=groups[provider];if(group.expiresAt!==null && group.expiresAt>t){end=Math.min(end,group.expiresAt);}group.cards.forEach(function(card){if(card.validUntil>t){end=Math.min(end,card.validUntil);}if(nativeFormat===2){[card.main,card.support].forEach(function(d){if(d&&d.validUntil>t){end=Math.min(end,d.validUntil);}});}});});
+    Object.keys(groups).forEach(function(provider){var group=groups[provider];if(group.expiresAt!==null && group.expiresAt>t){end=Math.min(end,group.expiresAt);}group.cards.forEach(function(card){if(card.validUntil>t){end=Math.min(end,card.validUntil);}if(nativeFormat>=2){[card.main,card.support].forEach(function(d){if(d&&d.validUntil>t){end=Math.min(end,d.validUntil);}});}});});
     if(end!==Infinity){expiryTimer=later(function(){expiryTimer=null;expire();},Math.max(1,end*1000-now()));}
   }
-  function receive(group,envelope){
-    if(!envelope || envelope.pluginUuid!==group.provider || !Array.isArray(envelope.instances) || envelope.instances.length>wire.LIMITS.instances){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
+  function receive(group,envelope,rebound){
+    if(!envelope || envelope.pluginUuid!==group.provider || !Array.isArray(envelope.instances) || envelope.instances.length>(group.item===summary.ITEM?17:wire.LIMITS.instances)){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
     var t=seconds(),expiry=envelope.validUntilMs===undefined?null:Math.floor(envelope.validUntilMs/1000);
     if(expiry!==null && !wire.integer(expiry,1,wire.MAX_EPOCH)){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
+    var snapshotHeader=null;
+    if(group.item===summary.ITEM){
+      snapshotHeader=summary.header(envelope);
+      if(!snapshotHeader){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
+      if(!rebound&&group.incarnation&&group.incarnation!==snapshotHeader.incarnation){
+        group.cards=[];group.incarnation=null;group.snapshotSequence=0;
+        // The source-floor clear must reach native before a reset managed
+        // revision. Queue only this cleared view until the send completes.
+        group.rebinding=true;group.pendingReset=null;group.pendingMode=snapshotHeader.mode;group.pendingRebind=true;
+        stopGroup(group);
+        publish(true);return;
+      }
+      if(group.rebinding&&!rebound){
+        var pendingHeader=summary.header(group.pendingReset);
+        if(!pendingHeader||pendingHeader.incarnation!==snapshotHeader.incarnation||snapshotHeader.sequence>pendingHeader.sequence){group.pendingReset=envelope;group.pendingMode=snapshotHeader.mode;}
+        return;
+      }
+      if(group.incarnation===snapshotHeader.incarnation&&group.publisherMode!==snapshotHeader.mode){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
+      if(group.incarnation===snapshotHeader.incarnation&&snapshotHeader.sequence<group.snapshotSequence){return;}
+      var responseSignature=JSON.stringify(envelope.instances);
+      if(group.incarnation===snapshotHeader.incarnation&&snapshotHeader.sequence===group.snapshotSequence){
+        if(group.responseSignature!==responseSignature){group.cards=[];group.error='INVALID_SOURCE';publish();}return;
+      }
+      group.incarnation=snapshotHeader.incarnation;group.publisherMode=snapshotHeader.mode;group.snapshotSequence=snapshotHeader.sequence;group.responseSignature=responseSignature;
+    }
     var next=[],seen=Object.create(null),malformed=false;
     envelope.instances.forEach(function(instance){
-      var source=group.item===activity.ITEM?activity.sourceCard(instance,group.provider):
+      if(group.item===summary.ITEM&&instance&&instance.instanceId==='@snapshot'){return;}
+
+      var source=group.item===summary.ITEM?summary.sourceCard(instance,group.provider):group.item===activity.ITEM?activity.sourceCard(instance,group.provider):
         group.item===view.ITEM?view.sourceCard(instance,group.provider):sourceCard(instance,group.provider);
       if(!source){malformed=true;return;}
-      var card=group.item===activity.ITEM?activity.toView(source):nativeFormat===2&&group.item!==view.ITEM?view.fromLegacy(source):source;
-      if(!card){malformed=true;return;}
-      if(!accepted(card)){return;}
-      var fingerprintCard=clone(source);delete fingerprintCard.unconfirmed;var fingerprint=JSON.stringify(fingerprintCard);
-      var identity=card.provider+'|'+card.id;
-      var metadata=JSON.stringify([source.kind,source.state,source.observedAt,source.validUntil,source.private]);
+      var card=group.item===summary.ITEM?summary.toView(source):group.item===activity.ITEM?activity.toView(source):nativeFormat>=2&&group.item!==view.ITEM?view.fromLegacy(source):source;
+      if(nativeFormat===3&&group.item!==summary.ITEM&&card){card=summaryView.fromLegacy(card);}
+      if(!card&&group.item!==summary.ITEM){malformed=true;return;}
+      if(card&&!accepted(card)){return;}
+      var fingerprintCard=clone(source);delete fingerprintCard.unconfirmed;delete fingerprintCard.displayName;
+      if(fingerprintCard.record){delete fingerprintCard.record.actions;delete fingerprintCard.record.entityRef;delete fingerprintCard.record.openApp;}
+      var fingerprint=JSON.stringify(fingerprintCard),identity=source.provider+'|'+source.id;
+      var state=source.record?(source.record.state||'active'):source.state;
+      var metadata=JSON.stringify([source.kind||source.type,state,source.observedAt,source.validUntil,source.private]);
+
       if(seen[identity]){malformed=true;return;}seen[identity]=true;
       var previous=revisions[identity];
-      if(previous && card.revision<previous.revision){
-        var retained=group.cards.filter(function(old){return old.id===card.id && old.revision===previous.revision;})[0];
+      if(previous && source.revision<previous.revision){
+        var retained=group.cards.filter(function(old){return old.id===source.id && old.revision===previous.revision;})[0];
         if(retained && retained.validUntil>t){next.push(retained);}return;
       }
-      if(previous && (card.revision===previous.revision && (metadata!==previous.metadata || group.item===previous.item&&fingerprint!==previous.fingerprint) || previous.terminal && card.state!=='completed' && card.state!=='cancelled')){malformed=true;return;}
-      revisions[identity]={revision:card.revision,fingerprint:fingerprint,metadata:metadata,item:group.item,terminal:card.state==='completed'||card.state==='cancelled'};
-      card.sourceFormat=group.item===activity.ITEM?3:group.item===view.ITEM?2:1;
+      if(previous && (source.revision===previous.revision && (metadata!==previous.metadata || group.item===previous.item&&fingerprint!==previous.fingerprint) || previous.terminal && state!=='completed' && state!=='cancelled')){malformed=true;return;}
+      revisions[identity]={revision:source.revision,fingerprint:fingerprint,metadata:metadata,item:group.item,terminal:state==='completed'||state==='cancelled'};
+      if(!card){return;}
+      card.sourceFormat=group.item===summary.ITEM?4:group.item===activity.ITEM?3:group.item===view.ITEM?2:1;
       if(card.kind==='music'){
         card.validUntil=Math.min(card.validUntil,card.observedAt+120);
-        if(nativeFormat===2){card.main.validUntil=Math.min(card.main.validUntil,card.validUntil);if(card.support){card.support.validUntil=Math.min(card.support.validUntil,card.validUntil);}}
+        if(nativeFormat>=2){card.main.validUntil=Math.min(card.main.validUntil,card.validUntil);if(card.support){card.support.validUntil=Math.min(card.support.validUntil,card.validUntil);}}
       }
       if(!Object.prototype.hasOwnProperty.call(orders,identity)){orders[identity]=++seenOrder;}
-      if(card.validUntil>t&&((card.state!=='completed'&&card.state!=='cancelled')||nativeFormat===2&&card.showTerminal)){next.push(card);}
+      if(card.validUntil>t&&((card.state!=='completed'&&card.state!=='cancelled')||nativeFormat>=2&&card.showTerminal)){next.push(card);}
     });
     // A malformed/redacted entry cannot leave an older private preview alive.
     if(malformed){next=[];}
@@ -152,7 +202,7 @@ module.exports=function createActivities(options) {
     groups[provider]=group;stopGroup(group);group.item=item;group.ready=false;group.settled=false;group.error='';var run=group.generation;
     function live(){return !stopped && connected && enabled && groups[provider]===group && run===group.generation;}
     try{
-      var handle=pebble.subscribeToSource({plugin:provider,category:wire.CATEGORY,item:item,properties:(item===activity.ITEM?activity.PROPERTIES:item===view.ITEM?view.PROPERTIES:PROPERTIES).slice(),iconPixelSize:{w:40,h:40},
+      var handle=pebble.subscribeToSource({plugin:provider,category:wire.CATEGORY,item:item,properties:(item===summary.ITEM?summary.PROPERTIES:item===activity.ITEM?activity.PROPERTIES:item===view.ITEM?view.PROPERTIES:PROPERTIES).slice(),iconPixelSize:{w:40,h:40},
         onData:function(envelope){if(live()){group.settled=true;receive(group,envelope);}},
         onError:function(error){if(!live()){return;}group.settled=true;group.error=errorCode(error);if(group.error==='TIMEOUT'||group.error==='PLUGIN_UNAVAILABLE'||group.error==='RATE_LIMITED'){uncertain(group);}else{group.cards=[];}publish();}});
       if(live()){group.handle=handle;}else if(handle && typeof handle.unsubscribe==='function'){handle.unsubscribe();}
@@ -212,6 +262,7 @@ module.exports=function createActivities(options) {
   return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,reproject:function(){publish(true);},
     providers:function(){return clone(installed);},
     catalogue:function(){return clone(catalogue());},
+    view:function(){return lastView?clone(lastView):null;},
     status:function(){var providers=Object.keys(groups).map(function(provider){var group=groups[provider];return {pluginUuid:provider,state:group.error?'unavailable':group.ready?'ready':'waiting',error:group.error,receivedAt:group.receivedAt};});var count=catalogue().length,complete=enumerated&&Object.keys(groups).every(function(provider){return groups[provider].settled;});var ready=enabled&&available&&connected&&enumerated&&providers.every(function(p){return p.state==='ready';});return {available:available,connected:connected,enabled:enabled,ready:ready,complete:complete,phase:ready?'ready':count?'partial':complete||lastError||!connected||!available?'unavailable':'loading',error:lastError||providers.map(function(p){return p.error;}).filter(Boolean)[0]||'',providers:providers,count:count};},
     stop:function(){stopped=true;generation++;Object.keys(groups).forEach(cleanGroup);[expiryTimer,discoveryTimer,retryTimer,bootTimer].forEach(function(timer){if(timer!==null){cancel(timer);}});expiryTimer=discoveryTimer=retryTimer=bootTimer=null;revisions=Object.create(null);orders=Object.create(null);}}
 };

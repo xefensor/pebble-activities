@@ -1,0 +1,297 @@
+{
+  "status": "Proposed navigation metadata and acceptance scenarios only; no app launches, settings writes or native packets",
+  "scope": "Current work uses stock PebbleOS and the official phone app; no forks, custom mobile builds or unreleased host APIs are required",
+  "nowMs": 1793700000000,
+  "navigationRetention": "The stock-SDK hint is a retention proposal, not a transient-memory implementation or an approved exception for private content",
+  "apps": {
+    "dynamic": "cc1281f1-3b4d-45b5-b235-6881b1fd8fbd",
+    "helper": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "timer": "50e9ef12-a5ab-4369-a3b5-3447bfba5151",
+    "music": "1f03293d-47af-4f28-b960-f2b02a6dd757",
+    "notifications": "b2cae818-10f8-46df-ad2b-98ad2254a3c1"
+  },
+  "note": "Helper UUID is a synthetic fixture, not a reserved production identity. Native session is a positive uint32 token. Other destination UUIDs identify existing watchapps.",
+  "configuration": {
+    "version": 1,
+    "defaultRole": "primary",
+    "holdOverrides": {
+      "up": "secondary",
+      "down": "primary"
+    }
+  },
+  "proposedHint": {
+    "schema": 1,
+    "watchfaceUuid": "cc1281f1-3b4d-45b5-b235-6881b1fd8fbd",
+    "nativeSession": 123456789,
+    "viewSequence": 41,
+    "presentationSequence": 7,
+    "presentedAtMs": 1793699995000,
+    "expiresAtMs": 1793700040000,
+    "primary": {
+      "watchAppUuid": "50e9ef12-a5ab-4369-a3b5-3447bfba5151"
+    },
+    "secondary": {
+      "watchAppUuid": "1f03293d-47af-4f28-b960-f2b02a6dd757"
+    }
+  },
+  "sourceAuthorExamples": [
+    {
+      "id": "tea-run-42",
+      "type": "standard",
+      "name": "Tea",
+      "headline": {
+        "type": "clock",
+        "mode": "countdown",
+        "deadline": 1793700151
+      },
+      "openApp": {
+        "watchAppUuid": "50e9ef12-a5ab-4369-a3b5-3447bfba5151"
+      }
+    },
+    {
+      "id": "player-session-7",
+      "type": "media",
+      "title": "Better Than The Cyberpunk Soundtrack",
+      "artist": "The Midnight",
+      "playback": "playing",
+      "openApp": {
+        "watchAppUuid": "1f03293d-47af-4f28-b960-f2b02a6dd757"
+      }
+    },
+    {
+      "id": "delivery-8",
+      "type": "standard",
+      "headline": {
+        "type": "text",
+        "text": "Arriving today"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "case": "down-hold",
+      "launch": {
+        "reason": "quickLaunch",
+        "action": "hold",
+        "button": "down"
+      },
+      "expectedRole": "primary",
+      "expectedDestination": "timer"
+    },
+    {
+      "case": "up-hold",
+      "launch": {
+        "reason": "quickLaunch",
+        "action": "hold",
+        "button": "up"
+      },
+      "expectedRole": "secondary",
+      "expectedDestination": "music"
+    },
+    {
+      "case": "select-hold-default",
+      "launch": {
+        "reason": "quickLaunch",
+        "action": "hold",
+        "button": "select"
+      },
+      "expectedRole": "primary",
+      "expectedDestination": "timer"
+    },
+    {
+      "case": "swapped-up-mapping",
+      "launch": {
+        "reason": "quickLaunch",
+        "action": "hold",
+        "button": "up"
+      },
+      "overrideRole": "primary",
+      "expectedRole": "primary",
+      "expectedDestination": "timer"
+    },
+    {
+      "case": "secondary-missing",
+      "selectedRole": "secondary",
+      "hintChange": {
+        "secondary": null
+      },
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "secondary-has-no-destination",
+      "selectedRole": "secondary",
+      "hintChange": {
+        "secondary": null
+      },
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "both-roles-same-watchapp",
+      "selectedRole": "secondary",
+      "hintChange": {
+        "secondary": {
+          "watchAppUuid": "50e9ef12-a5ab-4369-a3b5-3447bfba5151"
+        }
+      },
+      "expectedDestination": "timer",
+      "exactRunSelection": false
+    },
+    {
+      "case": "ordinary-menu-select",
+      "launch": {
+        "reason": "user",
+        "button": "select"
+      },
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "unsupported-tap",
+      "launch": {
+        "reason": "quickLaunch",
+        "action": "tap",
+        "button": "down"
+      },
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "expired-hint",
+      "atMs": 1793700040000,
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "wrong-source-provider",
+      "returnedProvider": "11111111-1111-4111-8111-111111111111",
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "helper-destination-loop",
+      "selectedRole": "primary",
+      "hintChange": {
+        "primary": {
+          "watchAppUuid": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+        }
+      },
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "secondary-promoted-native-status",
+      "selectedRole": "primary",
+      "hintChange": {
+        "viewSequence": 41,
+        "presentationSequence": 8,
+        "primary": {
+          "watchAppUuid": "1f03293d-47af-4f28-b960-f2b02a6dd757"
+        },
+        "secondary": null
+      },
+      "expectedDestination": "music"
+    },
+    {
+      "case": "promotion-status-missing",
+      "selectedRole": "primary",
+      "atMs": 1793700001000,
+      "hintChange": {
+        "expiresAtMs": 1793700001000
+      },
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "new-phone-ranking-not-yet-presented",
+      "selectedRole": "primary",
+      "phonePreferredDestination": "music",
+      "expectedDestination": "timer"
+    },
+    {
+      "case": "destination-only-change-awaiting-confirmation",
+      "event": "open-app-metadata-changed",
+      "newViewPresented": false,
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "old-native-status-after-destination-change",
+      "event": "old-presentation-status",
+      "expected": "ignore-without-restoring-hint"
+    },
+    {
+      "case": "back-before-dispatch",
+      "phase": "resolving",
+      "event": "back",
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "timeout-before-dispatch",
+      "phase": "awaiting-native-confirmation",
+      "event": "timeout",
+      "expected": "close-without-launch"
+    },
+    {
+      "case": "late-source-after-close",
+      "phase": "closed",
+      "event": "source-result",
+      "expected": "ignore-without-launch"
+    },
+    {
+      "case": "duplicate-native-confirmation",
+      "phase": "dispatched",
+      "event": "same-confirmation",
+      "maximumInvocations": 1
+    },
+    {
+      "case": "reconnect-after-timeout",
+      "phase": "closed",
+      "event": "reconnect",
+      "expected": "no-replay"
+    },
+    {
+      "case": "back-after-dispatch",
+      "phase": "dispatched",
+      "event": "back",
+      "expected": "close-launch-outcome-unknown"
+    },
+    {
+      "case": "permission-approved-after-timeout",
+      "phase": "submitted-awaiting-permission",
+      "event": "native-timeout-then-phone-approval",
+      "expected": "late-launch-possible-current-api"
+    },
+    {
+      "case": "recent-hint-from-another-face",
+      "dynamicOriginProven": false,
+      "expected": "documented-stock-origin-limitation"
+    },
+    {
+      "case": "two-connected-watches",
+      "connectedWatchCount": 2,
+      "expected": "unsupported-initial-profile-current-api-targets-all"
+    }
+  ],
+  "invalidAuthorDestinations": [
+    {
+      "value": {
+        "watchAppUuid": "not-a-uuid"
+      },
+      "reason": "invalid UUID"
+    },
+    {
+      "value": {
+        "watchAppUuid": "00000000-0000-0000-0000-000000000000"
+      },
+      "reason": "zero UUID"
+    },
+    {
+      "value": {
+        "watchAppUuid": "50e9ef12-a5ab-4369-a3b5-3447bfba5151",
+        "args": {
+          "timer": 3
+        }
+      },
+      "reason": "unsupported key and unsupported exact-timer launch"
+    },
+    {
+      "value": {
+        "plugin": "33333333-3333-4333-8333-333333333333"
+      },
+      "reason": "phone plugin identity is not a watchapp destination"
+    }
+  ]
+}

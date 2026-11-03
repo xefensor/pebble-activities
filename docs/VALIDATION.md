@@ -1,5 +1,20 @@
 # Validation
 
+## 0.4.0 semantic summary and ACT3 local candidate
+
+158 JavaScript tests and three strict portable C suites pass, including the
+ACT3 cross-language fixtures, maximum2672-byte frame, malformed-packet bounds,
+independent clocks and private clearing. The SDK4.33.1 Emery library builds.
+New tests cover all20 approved content examples and eight deliberate rejections,
+managed cold requests without private-content storage, counted empty responses,
+Timer owner leases and hidden acknowledgements, optional capabilities, metadata
+incarnation rebinding, old-callback rejection and frozen navigation projection.
+
+These are library/portable checks. Dynamic rendering, the actual mobile plugin
+runtime, Quick Launch transitions, physical-watch heap/stack/battery and native
+presentation ACK ordering require their consuming app evidence. No Dashboard
+implementation or forked phone/firmware is included.
+
 ## 0.3.0 simple activity contract — 3 November 2026
 
 The current plugin API is `activity/live` schema 3: one content item, optional
