@@ -143,3 +143,21 @@ test('source identity must match descriptor identity and malformed core bitmap m
   var instance=summary.toSourceInstance(owner(author('a')),{});instance.instanceId='other';assert.equal(summary.sourceCard(instance,PROVIDER),null);
   instance.instanceId='a';instance.properties.artwork={};assert.equal(summary.sourceCard(instance,PROVIDER),null);
 });
+
+test('extreme media text fits without ellipsis-only footer and preserves an artist prefix',function(){
+  var card=summary.toView(owner(summary.media('p',{title:'A'.repeat(192),artist:'B'.repeat(192)})));
+  assert.ok(card);assert.ok(card.main.text.startsWith('AAAA'));assert.ok(card.support.text.startsWith('BBBB'));
+  assert.notEqual(card.caption,'…');assert.notEqual(card.qualifier,'…');
+  assert.ok(view.poolFor(card).bytes.length<=304);
+});
+test('expired records still undergo strict content validation before filtering',async function(){
+  var source=provider(store(),function(){return [Object.assign(author('bad'),{visibleUntil:99,unknown:'invalid'})];});
+  await assert.rejects(source.source({}),/INVALID_SNAPSHOT/);
+});
+
+test('encoder rejects semantic metadata that native would reject',function(){
+  var base=summary.toView(owner(author('a')));
+  assert.equal(view.normalize(Object.assign({},base,{directions:[1,0]})),null);
+  assert.equal(view.normalize(Object.assign({},base,{visualToken:[1,0,0,0,0,0,0,0]})),null);
+  assert.equal(view.normalize(Object.assign({},base,{presentation:view.PRESENTATIONS.clock})),null);
+});

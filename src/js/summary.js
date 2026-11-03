@@ -26,7 +26,7 @@ function bounded(v,max){try{return wire.utf8(JSON.stringify(v)).length<=max;}cat
 function jsonValue(v,depth){
   if(v===null||typeof v==='string'||typeof v==='boolean'){return true;}
   if(typeof v==='number'){return finite(v);}
-  if(depth<0||typeof v!=='object'){return false;}
+  if(depth<=0||typeof v!=='object'){return false;}
   if(Array.isArray(v)){return v.every(function(x){return jsonValue(x,depth-1);});}
   if(!wire.object(v)||Object.getPrototypeOf(v)!==Object.prototype&&Object.getPrototypeOf(v)!==null){return false;}
   return Object.keys(v).every(function(k){return jsonValue(v[k],depth-1);});
@@ -134,7 +134,8 @@ function sourceCard(instance,provider){
       !wire.integer(scalar(p,'valid_until','timestamp'),1,MAX)||typeof scalar(p,'private','boolean')!=='boolean'||typeof scalar(p,'unconfirmed','boolean')!=='boolean'){return null;}
   if(p.icon!==undefined&&(!wire.object(p.icon)||!p.icon.image&&!p.icon.icon)||p.artwork!==undefined&&(!wire.object(p.artwork)||!p.artwork.image&&!p.artwork.icon)){return null;}
   var record=parseJson(p,'content',LIMITS.descriptor);if(!wire.object(record)||instance.instanceId!==record.id){return null;}
-  delete record.entityRef;delete record.actions;delete record.openApp;
+  delete record.entityRef;delete record.actions;delete record.openApp;delete record.artwork;
+  if(record.icon&&typeof record.icon!=='string'){delete record.icon;}
   if(p.icon!==undefined){record.icon=p.icon.image||p.icon.icon;}
   if(p.artwork!==undefined){record.artwork=p.artwork.image||p.artwork.icon;}
   // Malformed optional capabilities are discarded independently of content.
@@ -172,7 +173,7 @@ function provider(options,snapshot){
   function reserve(){
     var meta;
     try{meta=JSON.parse(options.storage.getItem(key));}catch(ignored){}
-    if(!known(meta,['version','incarnation','sequence'])||meta.version!==1||!text(meta.incarnation,64)||!wire.integer(meta.sequence,0,MAX)){
+    if(!known(meta,['version','incarnation','sequence'])||meta.version!==1||typeof meta.incarnation!=='string'||text(meta.incarnation,64)!==meta.incarnation||!wire.integer(meta.sequence,0,MAX)){
       meta={version:1,incarnation:String(now())+'-'+String(Math.random()).slice(2),sequence:0};
     }
     if(meta.sequence===MAX){throw new Error('SEQUENCE_EXHAUSTED');}meta.sequence++;
@@ -191,9 +192,12 @@ function provider(options,snapshot){
         else{entry={record:input,revision:meta.sequence,observedAt:observed,validUntil:Math.min(MAX,observed+validity),private:true,unconfirmed:false};}
         if(!entry){throw new Error('INVALID_SNAPSHOT');}
         var copy={};Object.keys(entry).forEach(function(k){copy[k]=entry[k];});copy.displayName=options.displayName||copy.displayName;
-        if(copy.record&&copy.record.visibleUntil!==undefined&&wire.integer(copy.record.visibleUntil,1,MAX)&&copy.record.visibleUntil<=observed){return;}
         if(copy.record&&copy.record.icon===undefined&&options.icon!==undefined){copy.record=helper({icon:options.icon},copy.record);}
-        var result=sourceRecord(copy,options.pluginUuid);if(!result||seen[result.id]){throw new Error('INVALID_SNAPSHOT');}seen[result.id]=true;
+        var validated=normalize(copy.record,copy.observedAt);
+        if(!validated||seen[validated.id]){throw new Error('INVALID_SNAPSHOT');}seen[validated.id]=true;
+        copy.record=validated;
+        if(validated.visibleUntil!==undefined&&validated.visibleUntil<=observed){return;}
+        var result=sourceRecord(copy,options.pluginUuid);if(!result){throw new Error('INVALID_SNAPSHOT');}
         if(result.record.type==='standard'&&(result.record.state==='completed'||result.record.state==='cancelled')&&!result.record.result){return;}
         if(result.validUntil>observed){var instance=toSourceInstance(result,request);if(!instance){throw new Error('INVALID_SNAPSHOT');}instances.push(instance);}
       });

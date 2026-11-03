@@ -2,7 +2,7 @@
 
 ## 0.4.0 semantic summary and ACT3 local candidate
 
-158 JavaScript tests and three strict portable C suites pass, including the
+161 JavaScript tests and three strict portable C suites pass, including the
 ACT3 cross-language fixtures, maximum2672-byte frame, malformed-packet bounds,
 independent clocks and private clearing. The SDK4.33.1 Emery library builds.
 New tests cover all20 approved content examples and eight deliberate rejections,

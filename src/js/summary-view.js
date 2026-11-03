@@ -35,23 +35,25 @@ function normalize(input){
     !Array.isArray(card.directions)||card.directions.length!==2||!card.directions.every(function(x){return wire.integer(x,0,4);})||
     !Array.isArray(card.visualToken)||card.visualToken.length!==8||!card.visualToken.every(function(x){return wire.integer(x,0,255);})){return null;}
   if(card.presentation===PRESENTATIONS.media&&(card.main.type!=='text'||card.support&&card.support.type!=='text'||card.compactItem||card.meter)){return null;}
-  if(card.presentation===PRESENTATIONS.clock&&card.main.type!=='clock'||card.presentation===PRESENTATIONS.value&&card.main.type!=='value'||card.presentation===PRESENTATIONS.ranged&&(!card.meter||card.main.type!=='value'||card.meter.source!=='main')){return null;}
+  if(card.presentation===PRESENTATIONS.text&&card.main.type!=='text'||card.presentation===PRESENTATIONS.clock&&card.main.type!=='clock'||card.presentation===PRESENTATIONS.value&&card.main.type!=='value'||card.presentation===PRESENTATIONS.ranged&&(!card.meter||card.main.type!=='value'||card.meter.source!=='main')){return null;}
+  if(card.directions[0]&&card.main.type!=='value'||card.directions[1]&&(!card.support||card.support.type!=='value')||card.presentation!==PRESENTATIONS.media&&card.visualToken.some(function(x){return x!==0;})){return null;}
   ['providerName','selectionKey','name','openApp','playback','sourceFormat','entityRef','actions','mediaItemId'].forEach(function(k){if(input[k]!==undefined){card[k]=clone(input[k]);}});
-  // Context and unselected supporting text yield before either role's selected
-  // datum. Numeric values/units are never shortened to satisfy the packet cap.
+  // Keep shrinking monotonic even when strings share a pool reference.
+  // Splitting a deduplicated string can increase storage, so optional aliases
+  // are omitted rather than leaving ellipsis-only context behind.
   var fields=[['qualifier'],['caption'],['main','label'],['support','label']];
-  if(card.support&&card.compactItem===0){fields.push(['support','text']);}
-  if(card.support&&card.compactItem===1&&card.support.type==='text'){fields.push(['support','text']);}
+  if(card.support&&card.support.type==='text'){fields.push(['support','text']);}
   if(card.main.type==='text'){fields.push(['main','text']);}
   for(var f=0;poolFor(card).bytes.length>304&&f<fields.length;f++){
     var field=fields[f],owner=field.length===1?card:card[field[0]],key=field[field.length-1];if(!owner||!owner[key]){continue;}
-    var requiredText=(field[0]==='main'||field[0]==='support'&&card.compactItem===1)&&key==='text';
-    if(owner.type==='value'&&key==='text'){continue;}
-    var before=wire.utf8(owner[key]).length;
-    var reduce=poolFor(card).bytes.length-304;
-    owner[key]=wire.text(owner[key],Math.max(requiredText?4:0,before-reduce));
+    var requiredText=key==='text'&&(field[0]==='main'||card.compactItem===1||card.presentation===PRESENTATIONS.media);
+    var before=poolFor(card).bytes.length,original=owner[key],size=wire.utf8(original).length;
+    var limit=Math.max(requiredText?8:0,size-(before-304));
+    owner[key]=limit<4?'':wire.text(original,limit);
+    if(poolFor(card).bytes.length>=before){owner[key]=requiredText?wire.text(original,8):'';}
+    if(field[0]==='support'&&key==='text'&&!owner.text){card.support=null;card.directions[1]=0;if(card.meter&&card.meter.source==='support'){card.meter=null;}}
   }
-  if(poolFor(card).bytes.length>304||!card.main.text&&card.main.type!=='clock'||card.compactItem===1&&!card.support.text&&card.support.type!=='clock'){return null;}
+  if(poolFor(card).bytes.length>304||!card.main.text&&card.main.type!=='clock'||card.compactItem===1&&(!card.support||!card.support.text&&card.support.type!=='clock')){return null;}
   return card;
 }
 function compiledDatum(d,source){
