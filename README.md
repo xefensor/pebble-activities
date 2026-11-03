@@ -65,7 +65,7 @@ helpers, source declarations, privacy and migration. Real-phone and physical
 watch checks are recorded separately from portable/emulator results in
 [validation](docs/VALIDATION.md).
 
-## Version 0.4.1 local candidate
+## Version 0.4.1
 
 - Adapt new notifications into the same ACT3 activity roles as other summaries.
 - Keep app identity/icon, sender/title, optional private body and app destination separate.
@@ -84,12 +84,10 @@ watch checks are recorded separately from portable/emulator results in
 
 ## Download
 
-The published development prerelease remains0.3.0;0.4.1 is a local candidate.
-
-The current [GitHub development prerelease is 0.3.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.3.0).
-Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/pebble-activities-0.3.0.tgz)
-or [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/dist.zip),
-and verify [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/SHA256SUMS.txt).
+The current [GitHub development prerelease is 0.4.1](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.1).
+Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.4.1/pebble-activities-0.4.1.tgz)
+or [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.4.1/dist.zip),
+and verify [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.4.1/SHA256SUMS.txt).
 [Earlier releases](https://github.com/xefensor/pebble-activities/releases) retain
 their original tags and bytes. Install [Timer](https://github.com/xefensor/pebble-app-timer)
 separately to publish native countdowns.

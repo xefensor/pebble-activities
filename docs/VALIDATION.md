@@ -1,6 +1,21 @@
 # Validation
 
-## 0.4.1 canonical notification activity local candidate
+## 0.4.1 GitHub prerelease publication — 3 November 2026
+
+Published as a [GitHub development prerelease](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.1)
+from commit `769eabc4b2bb4242a0f2d81ed3575c459d373a4a`.
+Both branch checks and the release check/publication jobs pass. All three
+published assets were downloaded and match the prepared bytes:
+
+- `dist.zip`: `d198a3a066552590dcedb4fa580216b067beb088752d2efd050029ed1bef28ad`
+- `pebble-activities-0.4.1.tgz`: `c292bbe7ac4aca6c75cebc6fe559cebbc722da072ff90fda085315e72369735b`
+- `SHA256SUMS.txt`: `2f6c6b3acfac7da5d60d54c93c2790ce1b854e0cd050e091c17e835bd736570f`
+
+This documentation follow-up preserves the tested source commit, published tag
+and assets. The release configuration pins 0.4.1 to that source snapshot;
+future versions use their own release commit. Older tags and assets are unchanged.
+
+## 0.4.1 canonical notification activity
 
 The context adapter supplies a normalized ACT3 standard notification card with
 source UUID, private sender/body, app identity/icon, stock Notifications destination
