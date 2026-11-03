@@ -11,6 +11,6 @@
   "checksums_file": "releases/SHA256SUMS.txt",
   "notes": {
     "path": "README.md",
-    "heading": "## Version {version}"
+    "heading": "## Version {version} local candidate"
   }
 }
