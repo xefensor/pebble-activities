@@ -3,8 +3,11 @@
 var wire = require('./complication-data');
 var activityWire = require('../../wire');
 var activity = require('../../activity');
+var summary = require('../../summary');
 // Namespace of this host adapter only; never claim an unknown SDK provider UUID.
 var MUSIC_ADAPTER_UUID = '718089b7-d9d4-4d6b-81c0-915dcd4c7e4a';
+var NOTIFICATION_ADAPTER_UUID = 'cdb6d497-547a-4940-8026-f7c97ea73a9d';
+var NOTIFICATIONS_APP_UUID = 'b2cae818-10f8-46df-ad2b-98ad2254a3c1';
 var KIND = wire.SEMANTIC_KIND;
 var SOURCE = wire.SOURCE_KIND;
 var LEASE = 120;
@@ -77,6 +80,12 @@ function bitmapOf(shape,image,maxSize) {
 function pictureOf(property,maxSize) {
   return object(property) ? bitmapOf(property.image,true,maxSize) || bitmapOf(property.icon,false,maxSize) : null;
 }
+function activityImage(bitmap) {
+  if (!bitmap) { return undefined; }
+  var pixels=[],stride=((bitmap.width+7)>>3)*4,row=Math.ceil(bitmap.width/2);
+  for (var y=0;y<bitmap.height;y++) { pixels=pixels.concat(bitmap.pixels.slice(y*stride,y*stride+row)); }
+  return {width:bitmap.width,height:bitmap.height,palette:bitmap.palette.slice(),pixels:pixels};
+}
 function keyOf(instance) {
   return object(instance) && typeof instance.instanceId === 'string' && instance.instanceId.length>0 &&
     instance.instanceId.length<=1024 && !/[\x00-\x1f\x7f]/.test(instance.instanceId) ? instance.instanceId : null;
@@ -106,6 +115,13 @@ function fingerprintOf(instance) {
   });
   return (hash>>>0).toString(16)+':'+(second>>>0).toString(16);
 }
+function digest(value) {
+  var hash=2166136261,second=5381;
+  for (var i=0;i<value.length;i++) {
+    var point=value.charCodeAt(i);hash=Math.imul(hash ^ point,16777619);second=((second << 5)+second) ^ point;
+  }
+  return (hash>>>0).toString(16)+':'+(second>>>0).toString(16);
+}
 
 /** Ephemeral context only: sends to the watch, never persists or logs content. */
 module.exports = function createContext(options) {
@@ -125,6 +141,8 @@ module.exports = function createContext(options) {
   var baseline=false;
   var notificationIds=Object.create(null);
   var activeNotice=null;
+  var noticeMetadata=null, notificationCard=null, notificationRun=0, notificationRevision=0;
+  var notificationIdentity='', notificationSignature='';
   var noticeWindowEnd=0, lastNoticeAt=0;
   var burstSequence=0, noticeBurst=0;
   var noticeShownAt=0, pendingNotice=null, noticeUpdateTimer=null;
@@ -165,6 +183,7 @@ module.exports = function createContext(options) {
   function clearNotice() {
     records[2]=records[3]=null;
     activeNotice=null;
+    noticeMetadata=notificationCard=null;
     pendingNotice=null; noticeShownAt=0;
     if (noticeUpdateTimer !== null) { options.cancelLater(noticeUpdateTimer); noticeUpdateTimer=null; }
   }
@@ -197,6 +216,7 @@ module.exports = function createContext(options) {
     // Opt-in hosts render this same ephemeral record in their activity slots.
     // Do not let the compatibility footer defeat their hide/order preferences.
     if (options.musicAsActivity === true && musicActivity()) { slots[0]=slots[1]=null; }
+    if (options.notificationAsActivity === true) { slots[2]=slots[3]=null; }
     if (markerNeeded) {
       // A boundary may itself have been queued before a second reconnect.
       // Boundaries never contain private notification data. A fresh notice is
@@ -213,9 +233,16 @@ module.exports = function createContext(options) {
       // This sidecar travels atomically with its snapshot. It contains no
       // provider identity or content, and is never persisted. The native host
       // must check the session and notification gate before acting on it.
-      var session=baselineToken || 0, event=!markerNeeded && slots[2] ? noticeBurst : 0;
+      var notice=options.notificationAsActivity === true ? notificationActivity() : null;
+      var session=baselineToken || 0, event=!markerNeeded && (notice || slots[2]) ? noticeBurst : 0;
       var state=[0,0,0,0,0,0,0,0,slots[0] && !playing ? 1 : 0];
       for (var i=0; i<4; i++) { state[i]=(session >>> (i*8)) & 255; state[i+4]=(event >>> (i*8)) & 255; }
+      // Opt-in hosts no longer receive notification slots. Preserve the original
+      // deadline beside the event so a delayed queue cannot vibrate after expiry.
+      if (options.notificationAsActivity === true) {
+        var expiry=notice ? notice.validUntil : 0;
+        for (i=0;i<4;i++) { state[9+i]=(expiry >>> (i*8)) & 255; }
+      }
       result[options.keys.CONTEXT_STATE]=state;
     }
     return result;
@@ -241,6 +268,7 @@ module.exports = function createContext(options) {
         if (ok && sentMarker && sentBaselineGeneration === baselineGeneration && sentToken === baselineToken) {
           markerNeeded=false;
           if (fresh(records[2])) { pending=true; }
+          if (options.notificationAsActivity === true) { notify(); }
         }
         if (deliveryTimer !== null) { options.cancelLater(deliveryTimer); }
         deliveryTimer=null;
@@ -275,15 +303,48 @@ module.exports = function createContext(options) {
     result.selectionKey='builtin:music'; result.providerName='Music';
     return result;
   }
+  function notificationActivity() {
+    if (stopped || !connected || markerNeeded || !enabled('notifications') || !fresh(records[2]) ||
+        !notificationCard || notificationCard.validUntil<=now()) { return null; }
+    return JSON.parse(JSON.stringify(notificationCard));
+  }
+  function syncNotificationActivity() {
+    if (!noticeMetadata || !noticeMetadata.provider || !fresh(records[2])) { notificationCard=null; return; }
+    var identity=digest(JSON.stringify([noticeMetadata.provider,activeNotice,noticeMetadata.burst]));
+    var source={provider:noticeMetadata.provider,observedAt:records[2].confirmedAt,validUntil:records[2].validUntil,
+      private:true,displayName:'Notifications',record:{id:'notification',type:'standard',icon:activityImage(records[2].bitmap)||'message',
+        name:noticeMetadata.appName,headline:{type:'text',text:records[2].text},
+        openApp:{watchAppUuid:NOTIFICATIONS_APP_UUID}}};
+    if (fresh(records[3])) { source.record.detail={type:'text',text:records[3].text}; }
+    // Retain only digests across a redaction, never an earlier body or source ID.
+    var signature=digest(JSON.stringify(source));
+    if (identity !== notificationIdentity || notificationRevision===MAX_EPOCH) {
+      notificationIdentity=identity; notificationRun++; notificationRevision=0; notificationSignature='';
+    }
+    if (signature !== notificationSignature) { notificationRevision++; notificationSignature=signature; }
+    source.revision=notificationRevision; source.record.id='legacy-notification-'+notificationRun;
+    notificationCard=summary.toView(source);
+    if (notificationCard) { notificationCard.selectionKey='builtin:notifications'; }
+  }
+  function activateNotice(next) {
+    records[2]=next.title; records[3]=next.body; activeNotice=next.id;
+    noticeMetadata={provider:next.provider,appName:next.appName,burst:next.burst};
+    noticeShownAt=options.now(); syncNotificationActivity();
+  }
   function scheduleExpiry() {
     if (expiryTimer !== null) { options.cancelLater(expiryTimer); }
     expiryTimer=null;
     var end=Infinity;
     records.forEach(function(value) { if (fresh(value)) { end=Math.min(end,value.validUntil); } });
+    if (pendingNotice && fresh(pendingNotice.title)) { end=Math.min(end,pendingNotice.title.validUntil); }
     if (end !== Infinity && !stopped) {
       expiryTimer=options.later(function() {
         expiryTimer=null;
         if (!fresh(records[2])) { clearNotice(); }
+        if (pendingNotice && !fresh(pendingNotice.title)) {
+          pendingNotice=null;
+          if (noticeUpdateTimer !== null) { options.cancelLater(noticeUpdateTimer); noticeUpdateTimer=null; }
+        }
         currentSlots(); publish();
       },Math.max(1,end*1000-options.now()));
     }
@@ -347,12 +408,7 @@ module.exports = function createContext(options) {
     var artist=records[1] ? records[1].text : '', identity=JSON.stringify([provider,keyOf(instance),title,artist]);
     if (identity !== musicIdentity || musicRevision===MAX_EPOCH) { musicIdentity=identity; musicRun++; musicRevision=0; }
     musicRevision++;
-    var bitmap=records[0].bitmap, image;
-    if (bitmap) {
-      var pixels=[],stride=((bitmap.width+7)>>3)*4,row=Math.ceil(bitmap.width/2);
-      for (var y=0;y<bitmap.height;y++) { pixels=pixels.concat(bitmap.pixels.slice(y*stride,y*stride+row)); }
-      image={width:bitmap.width,height:bitmap.height,palette:bitmap.palette.slice(),pixels:pixels};
-    }
+    var image=activityImage(records[0].bitmap);
     // Missing optional metadata contributes no label or placeholder row.
     var detail=/^(?:\?|unknown|unknown artist)$/i.test(artist.trim())?'':artist;
     musicCard=activity.toView({provider:provider,id:'legacy-music-'+musicRun,kind:'music',revision:musicRevision,
@@ -381,11 +437,12 @@ module.exports = function createContext(options) {
     var title=clean(textOf(p.name)), appTitle=wire.normalizeText(clean(app),24);
     var heading=settings.notificationAppOnly ? clean(app) || clean(packageName) : title || clean(app);
     if (!allowed || !heading) { return null; }
-    return {title:title,appTitle:appTitle,heading:heading,
+    return {title:title,appTitle:appTitle,appName:wire.normalizeText(clean(app)||clean(packageName)||'Notifications',64),heading:heading,
       body:settings.notificationPreview && !settings.notificationAppOnly ? clean(textOf(p.body)) : ''};
   }
   function notificationData(envelope) {
-    var incoming=Object.create(null), candidates=[], activeInstance=null, pendingInstance=null, deferred=false;
+    var incoming=Object.create(null), candidates=[], activeInstance=null, pendingInstance=null, deferred=false, changed=false;
+    var provider=envelope.pluginUuid===undefined?NOTIFICATION_ADAPTER_UUID:activityWire.uuid(envelope.pluginUuid)?envelope.pluginUuid:null;
     envelope.instances.forEach(function(instance) {
       var id=keyOf(instance);
       if (id === null || incoming[id]) { return; }
@@ -407,6 +464,7 @@ module.exports = function createContext(options) {
     if (activeInstance && fresh(records[2]) && notificationIds[activeNotice] === incoming[activeNotice]) {
       var refreshedIcon=pictureOf(activeInstance.properties.app_icon,24);
       if (refreshedIcon) { records[2].bitmap=refreshedIcon; }
+      if (noticeMetadata) { noticeMetadata.provider=provider; }
     }
     // First delivery is a snapshot of the existing phone shade, not a new
     // notification. Reconnects, errors and settings changes establish it again.
@@ -414,12 +472,21 @@ module.exports = function createContext(options) {
     if (!baseline) { baseline=true; return; }
     var availableEnd=until(envelope,NOTICE_MESSAGE_LIFE);
     if (!availableEnd) { clearNotice(); return; }
+    // An unchanged redelivery may shorten the authoritative source lease. Cap
+    // visible AND queued text without changing its original observation time.
+    function cap(record) {
+      if (record && record.validUntil>availableEnd) { record.validUntil=availableEnd; changed=true; }
+    }
+    cap(records[2]); cap(records[3]);
+    if (pendingNotice) { cap(pendingNotice.title); cap(pendingNotice.body); }
+    if (noticeWindowEnd>availableEnd) { noticeWindowEnd=availableEnd; }
     for (var i=0; i<candidates.length; i++) {
       var instance=candidates[i], p=instance.properties;
       var content=notificationContent(instance);
       if (!content) { continue; }
       var title=content.title, appTitle=content.appTitle, heading=content.heading, body=content.body;
-      var end=Math.min(availableEnd,now()+(body ? NOTICE_MESSAGE_LIFE : NOTICE_SUMMARY_LIFE));
+      var lifetime=options.notificationAsActivity === true || body ? NOTICE_MESSAGE_LIFE : NOTICE_SUMMARY_LIFE;
+      var end=Math.min(availableEnd,now()+lifetime);
       var received=now();
       if (received>=noticeWindowEnd) {
         var quiet=lastNoticeAt === 0 || received-lastNoticeAt>=NOTICE_QUIET;
@@ -433,7 +500,7 @@ module.exports = function createContext(options) {
         noticeBurst=burstSequence;
       } else { lastNoticeAt=received; }
       end=Math.min(end,noticeWindowEnd);
-      var next={id:keyOf(instance),title:record(heading,pictureOf(p.app_icon,24),end,
+      var next={id:keyOf(instance),provider:provider,appName:content.appName,burst:noticeBurst,title:record(heading,pictureOf(p.app_icon,24),end,
         {kind:KIND.GENERIC,source:SOURCE.NOTIFICATION,label:settings.notificationAppOnly ? '' : appTitle}),
         body:body ? record(body,null,end,{kind:KIND.GENERIC,source:SOURCE.NOTIFICATION}) : null};
       // A stable reading interval must never postpone a source redaction.
@@ -446,19 +513,18 @@ module.exports = function createContext(options) {
             noticeUpdateTimer=null;
             var pending=pendingNotice; pendingNotice=null;
             if (!pending || stopped || !connected || !baseline || !enabled('notifications') || !fresh(pending.title)) { return; }
-            records[2]=pending.title; records[3]=pending.body; activeNotice=pending.id;
-            noticeShownAt=options.now(); publish();
+            activateNotice(pending); publish();
           },Math.max(1,noticeShownAt+NOTICE_STABLE_MS-options.now()));
         }
       } else {
         if (noticeUpdateTimer !== null) { options.cancelLater(noticeUpdateTimer); noticeUpdateTimer=null; }
         pendingNotice=null;
-        records[2]=next.title; records[3]=next.body; activeNotice=next.id;
-        noticeShownAt=options.now();
+        activateNotice(next);
       }
       break; // The native source orders instances newest first.
     }
-    return deferred ? 'deferred' : undefined;
+    syncNotificationActivity();
+    return deferred && !changed ? 'deferred' : undefined;
   }
   function close(name) {
     var group=groups[name];
@@ -553,8 +619,9 @@ module.exports = function createContext(options) {
       notify();
     } else { connected=true; refresh(true,token); }
   }
-  return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,musicActivity:musicActivity,
+  return {refresh:refresh,configure:configure,connectionChanged:connectionChanged,musicActivity:musicActivity,notificationActivity:notificationActivity,
     musicProvider:function(){var card=musicActivity();return card?{uuid:card.provider,name:'Music',item:'track',available:true}:null;},
+    notificationProvider:function(){var card=notificationActivity();return card?{uuid:card.provider,name:'Notifications',item:'notification',available:true}:null;},
     status:function() {
       var sources={}, sourceStates={}, error='';
       Object.keys(groups).forEach(function(name) { sources[name]=groups[name].error; });

@@ -1,5 +1,25 @@
 # Validation
 
+## 0.4.1 canonical notification activity local candidate
+
+The context adapter supplies a normalized ACT3 standard notification card with
+source UUID, private sender/body, app identity/icon, stock Notifications destination
+and stable host preference key. New regressions cover baseline ACK gating,
+immutable polling, all privacy modes, same-occurrence revision changes, late
+icons, coalescing, redaction recovery, clear/error/settings/disconnect/API lifecycle,
+and the opt-in 13-byte sidecar carrying the original event deadline. Shortened
+source leases cap both visible and queued records in legacy and activity modes.
+The default legacy transport remains covered by all existing context tests.
+
+171 JavaScript tests, three strict portable C suites and 23 Python release-helper
+tests pass. ACT3 fixtures and wire bounds remain unchanged. The SDK4.33.1 Emery
+library builds; the versioned npm archive includes the matching SDK, source and
+documentation. Release preparation validates every packed file against the local
+source commit. The0.4.0 archive retains SHA256
+`9e640aea91d08633e91e59dab3d1e0ee6243efe0109d971e42d356a4d67affbe`.
+Rendering, vibration/Quick Launch timing on actual phones and physical watch
+behavior remain consuming-app/device checks.
+
 ## 0.4.0 semantic summary and ACT3 local candidate
 
 161 JavaScript tests and three strict portable C suites pass, including the

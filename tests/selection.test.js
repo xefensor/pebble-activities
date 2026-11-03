@@ -14,6 +14,16 @@ test('pure selection supports Music in either role and hiding any provider',()=>
   assert.deepEqual(selection.select(cards,{hidden:[A,'builtin:music']}),[health]);
   assert.equal(JSON.stringify(cards),before);
 });
+test('Notifications use a stable host preference key independently of their SDK provider UUID',()=>{
+  const t=timer('timer',100),notice={provider:B,selectionKey:selection.NOTIFICATIONS_KEY,id:'notice',state:'active'};
+  assert.equal(selection.NOTIFICATIONS_KEY,'builtin:notifications');
+  assert.deepEqual(selection.normalizePreferences({order:['builtin:notifications',A,'builtin:notifications'],hidden:['builtin:notifications']}),
+    {order:['builtin:notifications',A],hidden:['builtin:notifications']});
+  assert.deepEqual(selection.select([t,notice],{order:['builtin:notifications',A]}),[notice,t]);
+  assert.deepEqual(selection.select([t,notice],{order:[A,'builtin:notifications']}),[t,notice]);
+  assert.deepEqual(selection.select([notice,t],{hidden:['builtin:notifications']}),[t]);
+  assert.equal(selection.providerKey(notice),'builtin:notifications');
+});
 test('nearest active countdowns reorder only their provider positions even when interleaved',()=>{
   const later=timer('later',90),soon=timer('soon',10),paused=timer('paused',1,false),health={provider:B,id:'health',state:'active'};
   assert.deepEqual(selection.select([later,health,soon,paused]),[soon,health]);

@@ -2,10 +2,11 @@
 
 var wire=require('./wire');
 var MUSIC='builtin:music';
-function key(value){return value===MUSIC||wire.uuid(value)?value:null;}
+var NOTIFICATIONS='builtin:notifications';
+function key(value){return value===MUSIC||value===NOTIFICATIONS||wire.uuid(value)?value:null;}
 function list(value){return (Array.isArray(value)?value:[]).map(key).filter(function(v,i,a){return v&&a.indexOf(v)===i;}).slice(0,64);}
 function normalizePreferences(value){value=value&&typeof value==='object'?value:{};return {order:list(value.order),hidden:list(value.hidden)};}
-function providerKey(card){return card&&card.selectionKey===MUSIC?MUSIC:card&&key(card.provider);}
+function providerKey(card){return card&&[MUSIC,NOTIFICATIONS].indexOf(card.selectionKey)>=0?card.selectionKey:card&&key(card.provider);}
 function terminal(card){return card.state==='completed'||card.state==='cancelled';}
 function countdown(card){var d=card.main;return d&&d.type==='clock'&&d.mode==='deadline'?d:null;}
 /** Pure host policy. Persist provider keys only; cards and run IDs stay transient. */
@@ -29,4 +30,4 @@ function select(cards,options){
       return a.index-b.index;
     }).slice(0,limit).map(function(entry){return entry.card;});
 }
-module.exports={select:select,normalizePreferences:normalizePreferences,providerKey:providerKey,MUSIC_KEY:MUSIC};
+module.exports={select:select,normalizePreferences:normalizePreferences,providerKey:providerKey,MUSIC_KEY:MUSIC,NOTIFICATIONS_KEY:NOTIFICATIONS};

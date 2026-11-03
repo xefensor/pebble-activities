@@ -53,6 +53,7 @@ function fixture(overrides={}) {
   };
   if(overrides.onChanged) options.onChanged=overrides.onChanged;
   if(overrides.musicAsActivity) options.musicAsActivity=true;
+  if(overrides.notificationAsActivity) options.notificationAsActivity=true;
   if(overrides.queue) options.send=createQueue({send:options.send,keys:options.keys,later:options.later,cancelLater:options.cancelLater});
   const client=createContext(options);
   function latest(name) {
@@ -64,7 +65,8 @@ function fixture(overrides={}) {
     apiAvailable:value=>{if(value)pebble.subscribeToSource=subscribe;else delete pebble.subscribeToSource;},
     source:(name,value)=>latest(name).onData(value),error:(name,code)=>latest(name).onError({code}),
     packet:()=>decode(deliveries.at(-1)[KEY]),state:()=>{const bytes=Buffer.from(deliveries.at(-1)[STATE_KEY]);
-      assert.equal(bytes.length,9);return {session:bytes.readUInt32LE(0),event:bytes.readUInt32LE(4),paused:bytes[8]===1};},
+      assert.equal(bytes.length,overrides.notificationAsActivity?13:9);const state={session:bytes.readUInt32LE(0),event:bytes.readUInt32LE(4),paused:bytes[8]===1};
+      if(bytes.length===13)state.expiresAt=bytes.readUInt32LE(9);return state;},
     hold:value=>{hold=value;},advance:ms=>{now+=ms;},
     tick:ms=>{const end=now+ms;let count=0;for(;;){
       const next=[...timers].filter(([,timer])=>timer.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];
@@ -92,6 +94,132 @@ test('Playing music has a two-minute receipt lease and independent title/artist 
   assert.equal(f.packet()[1].validUntil,f.packet()[0].validUntil);
   assert.equal(f.client.status().music,true);
   assert.ok(!JSON.stringify(f.client.status()).includes('Genesis'));
+});
+
+test('Notification activity shares ACT3 roles, private source identity, app destination and immutable event metadata',()=>{
+  const f=fixture({notificationAsActivity:true,settings:{showNotifications:true,notificationPreview:true}});
+  f.client.refresh(true,12);const provider='c9e7cb18-eaf7-4b30-9b09-9a8fae187801';
+  f.source('notifications',{pluginUuid:provider,instances:[notification('old')]});
+  assert.equal(f.client.notificationActivity(),null,'existing shade contents are a baseline');
+  f.source('notifications',{pluginUuid:provider,instances:[notification('new'),notification('old')]});
+  const first=f.client.notificationActivity();assert.ok(first);assert.equal(first.provider,provider);
+  assert.equal(first.selectionKey,'builtin:notifications');assert.equal(first.providerName,'Notifications');
+  assert.equal(first.presentation,1);assert.equal(first.identitySymbol,4);assert.equal(first.caption,'Signal');
+  assert.equal(first.main.text,'Alexej');assert.equal(first.support.text,'Dinner in ten minutes');
+  assert.equal(first.private,true);assert.equal(first.main.retain,false);assert.equal(first.support.retain,false);
+  assert.deepEqual(first.openApp,{watchAppUuid:'b2cae818-10f8-46df-ad2b-98ad2254a3c1'});
+  assert.deepEqual(f.packet().slice(2,4).map(x=>x.status),[0,0],'no duplicate legacy notification layout');
+  assert.deepEqual(f.state(),{session:12,event:1,paused:false,expiresAt:NOW/1000+8});
+  first.main.text='mutated';assert.equal(f.client.notificationActivity().main.text,'Alexej');
+  const stable=f.client.notificationActivity();f.tick(1000);
+  f.source('phone',battery(5));f.source('notifications',{pluginUuid:provider,instances:[notification('new'),notification('old')]});
+  assert.deepEqual(f.client.notificationActivity(),stable,'polls, redeliveries and other sources do not renew an event');
+  const bytes=require('../src/js/summary-view').encode([stable],{session:12,revision:1,sentAt:NOW/1000});
+  assert.equal(Buffer.from(bytes).subarray(0,4).toString(),'ACT3');
+  assert.ok(!JSON.stringify(f.client.status()).includes('Dinner'));
+});
+
+test('Notification activity gates until its own baseline ACK and notifies the host when released',()=>{
+  let changed=0;const f=fixture({notificationAsActivity:true,onChanged:()=>changed++,settings:{showNotifications:true,notificationPreview:true}});
+  f.hold(true);f.client.refresh(true,15);f.source('notifications',envelope([]));
+  f.source('notifications',envelope([notification('fresh')]));
+  assert.equal(f.client.notificationActivity(),null);assert.equal(f.state().event,0);assert.equal(f.state().expiresAt,0);
+  const before=changed;f.callbacks[0].success();
+  assert.ok(changed>before,'ACK releases a new activity projection');assert.ok(f.client.notificationActivity());
+  assert.equal(f.state().event,1);assert.equal(f.state().expiresAt,NOW/1000+8);
+  f.client.connectionChanged(true,16);assert.equal(f.client.notificationActivity(),null);
+  f.callbacks[0].success();assert.equal(f.client.notificationActivity(),null,'old ACK cannot release a new baseline');
+});
+
+test('Every notification activity privacy mode shares one bounded eight-second event lease',()=>{
+  for(const mode of [{notificationPreview:false},{notificationPreview:true},{notificationPreview:true,notificationAppOnly:true}]) {
+    const f=fixture({notificationAsActivity:true,settings:{showNotifications:true,...mode}});f.client.refresh(true,17);
+    f.source('notifications',envelope([]));f.source('notifications',envelope([notification('new')]));
+    const card=f.client.notificationActivity(),body=mode.notificationPreview&&!mode.notificationAppOnly;
+    assert.equal(card.presentation,1);assert.equal(card.main.text,mode.notificationAppOnly?'Signal':'Alexej');
+    assert.equal(card.support&&card.support.text,body?'Dinner in ten minutes':null);
+    assert.equal(card.validUntil,NOW/1000+8);assert.deepEqual(card.openApp,{watchAppUuid:'b2cae818-10f8-46df-ad2b-98ad2254a3c1'});
+    f.tick(8000);assert.equal(f.client.notificationActivity(),null);
+    assert.equal(f.state().event,0);assert.equal(f.state().expiresAt,0);
+  }
+});
+
+test('Notification revisions follow visible source updates and occurrences, not artwork arrival time or polling',()=>{
+  const f=fixture({notificationAsActivity:true,settings:{showNotifications:true,notificationPreview:true}});f.client.refresh(true,18);
+  f.source('notifications',envelope([]));f.source('notifications',envelope([notification('chat','Sender','Signal','First')]));
+  const first=f.client.notificationActivity();f.tick(100);
+  f.source('notifications',envelope([notification('chat','Sender','Signal','Second')]));
+  assert.deepEqual(f.client.notificationActivity(),first,'coalescing keeps the current revision until the update appears');
+  f.tick(800);const changed=f.client.notificationActivity();
+  assert.equal(changed.id,first.id);assert.ok(changed.revision>first.revision);assert.equal(changed.support.text,'Second');
+  assert.equal(changed.validUntil,first.validUntil);assert.equal(changed.observedAt,NOW/1000);
+  const shape={width:3,height:1,palette:Buffer.from([192,255]).toString('base64'),pixels:Buffer.from([0x10,0x10]).toString('base64')};
+  f.source('notifications',envelope([notification('chat','Sender','Signal','Second',{app_icon:{icon:shape}})]));
+  const art=f.client.notificationActivity();assert.deepEqual(art.image.pixels,[0x10,0x10]);
+  assert.equal(art.id,changed.id);assert.ok(art.revision>changed.revision);assert.equal(art.observedAt,changed.observedAt);assert.equal(art.validUntil,changed.validUntil);
+  f.tick(1000);f.source('notifications',envelope([notification('other','Other sender','Other app','New message')]));
+  assert.notEqual(f.client.notificationActivity().id,first.id);
+});
+
+test('Notification activity clears on source withdrawal, permission loss, settings changes, API loss and disconnect',()=>{
+  const stops=[f=>f.source('notifications',envelope([])),f=>f.error('notifications','PERMISSION_DENIED'),
+    f=>{f.settings.notificationPreview=false;f.client.configure();},f=>{f.settings.showNotifications=false;f.client.configure();},
+    f=>f.client.connectionChanged(false),f=>{f.apiAvailable(false);f.client.refresh();},f=>f.client.stop(),
+    f=>f.source('notifications',envelope([{instanceId:'chat',properties:{}}]))];
+  for(const stop of stops) {
+    const f=fixture({notificationAsActivity:true,settings:{showNotifications:true,notificationPreview:true}});f.client.refresh(true,19);
+    f.source('notifications',envelope([]));f.source('notifications',envelope([notification('chat')]));
+    assert.ok(f.client.notificationActivity());f.tick(100);f.source('notifications',envelope([notification('chat','Private','Signal','Queued private')]));
+    stop(f);assert.equal(f.client.notificationActivity(),null);f.tick(1000);assert.equal(f.client.notificationActivity(),null);
+  }
+});
+
+test('Notification activity validates supplied source UUID and uses only an adapter namespace when absent',()=>{
+  const f=fixture({notificationAsActivity:true,settings:{showNotifications:true}});f.client.refresh(true,20);f.source('notifications',envelope([]));
+  f.source('notifications',envelope([notification('first')]));const first=f.client.notificationActivity();
+  assert.equal(first.provider,'cdb6d497-547a-4940-8026-f7c97ea73a9d');
+  f.tick(1000);f.source('notifications',{pluginUuid:'invalid',instances:[notification('second')]});
+  assert.equal(f.client.notificationActivity(),null);assert.equal(f.state().event,0);assert.equal(f.state().expiresAt,0);
+  assert.deepEqual(f.packet().slice(2,4).map(x=>x.status),[0,0]);
+});
+
+test('Redaction recovery keeps notification occurrence identity and deadline without replaying its burst',()=>{
+  const f=fixture({notificationAsActivity:true,settings:{showNotifications:true,notificationPreview:true}});f.client.refresh(true,22);
+  f.source('notifications',envelope([]));f.source('notifications',envelope([notification('chat')]));
+  const first=f.client.notificationActivity(),event=f.state().event;
+  f.tick(100);f.source('notifications',envelope([{instanceId:'chat',properties:{}}]));assert.equal(f.client.notificationActivity(),null);
+  f.tick(1000);f.source('notifications',envelope([notification('chat')]));const restored=f.client.notificationActivity();
+  assert.equal(restored.id,first.id);assert.ok(restored.revision>first.revision);assert.equal(restored.validUntil,first.validUntil);
+  assert.equal(f.state().event,event);
+});
+
+test('Queued notification events retain their source deadline and never gain a lease after delayed delivery',()=>{
+  const f=fixture({notificationAsActivity:true,settings:{showNotifications:true}});f.client.refresh(true,23);
+  f.source('notifications',envelope([]));f.hold(true);f.source('notifications',envelope([notification('new')]));
+  const sent=f.deliveries.at(-1),bytes=Buffer.from(sent[STATE_KEY]);assert.equal(bytes.length,13);
+  assert.equal(bytes.readUInt32LE(4),1);assert.equal(bytes.readUInt32LE(9),NOW/1000+8);
+  f.tick(9000);assert.equal(f.client.notificationActivity(),null);
+  assert.equal(bytes.readUInt32LE(9),NOW/1000+8,'an already queued snapshot keeps the original expiry for the native check');
+  f.callbacks.at(-1).success();assert.equal(f.state().event,0);assert.equal(f.state().expiresAt,0);
+});
+
+test('Shortened source expiry caps identical visible and queued notifications in both host modes',()=>{
+  for(const notificationAsActivity of [false,true]) for(const queued of [false,true]) {
+    const f=fixture({notificationAsActivity,settings:{showNotifications:true,notificationPreview:true}});f.client.refresh(true,21);
+    const first=notification('chat','Sender','Signal','First');f.source('notifications',envelope([]));
+    f.source('notifications',{instances:[first],validUntilMs:NOW+8000});
+    const revision=notificationAsActivity?f.client.notificationActivity().revision:0;
+    f.tick(100);const current=queued?notification('chat','Sender','Signal','Queued'):first;
+    if(queued)f.source('notifications',{instances:[current],validUntilMs:NOW+8000});
+    f.tick(100);f.source('notifications',{instances:[current],validUntilMs:NOW+1000});
+    if(notificationAsActivity) {
+      const card=f.client.notificationActivity();assert.equal(card.validUntil,NOW/1000+1);
+      assert.equal(card.observedAt,NOW/1000);assert.ok(card.revision>revision);assert.equal(f.state().expiresAt,NOW/1000+1);
+    } else assert.equal(f.packet()[2].validUntil,NOW/1000+1);
+    f.tick(700);if(queued)assert.equal(notificationAsActivity?f.client.notificationActivity().support.text:f.packet()[3].text,'Queued');
+    f.tick(100);assert.equal(f.client.notificationActivity(),null);assert.equal(f.client.status().notification,false);
+    assert.equal(f.state().event,0);if(notificationAsActivity)assert.equal(f.state().expiresAt,0);
+  }
 });
 test('Music activity is ephemeral, UUID-bound, immutable on polling and cleared with its private source',()=>{
   let changed=0;const f=fixture({onChanged:()=>changed++});f.client.refresh();

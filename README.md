@@ -1,6 +1,8 @@
 # Pebble Activities
 
-Semantic ongoing activities for **stock PebbleOS**. Version **0.4.0** adds
+Semantic ongoing activities for **stock PebbleOS**. Version **0.4.1** adds an
+opt-in canonical notification activity and fixes shortened notification expiry.
+Version **0.4.0** introduced
 `activity/summary` schema4: standard summaries with typed headline/detail data,
 and media summaries with title/artist/artwork. Plugins publish content; consuming
 apps own priority, normal/compact layouts and animations.
@@ -63,6 +65,15 @@ helpers, source declarations, privacy and migration. Real-phone and physical
 watch checks are recorded separately from portable/emulator results in
 [validation](docs/VALIDATION.md).
 
+## Version 0.4.1 local candidate
+
+- Adapt new notifications into the same ACT3 activity roles as other summaries.
+- Keep app identity/icon, sender/title, optional private body and app destination separate.
+- Preserve baseline suppression, opt-in previews, filters, bounded bursts and coalescing.
+- Carry the original notification deadline with optional vibration events.
+- Apply shortened source expiry to visible and queued notifications without renewal.
+- Keep legacy context defaults, earlier APIs and historical release bytes compatible.
+
 ## Version 0.4.0 local candidate
 
 - Add standard/media semantic source4 helpers and managed response headers.
@@ -73,7 +84,7 @@ watch checks are recorded separately from portable/emulator results in
 
 ## Download
 
-The published development prerelease remains0.3.0;0.4.0 is a local candidate.
+The published development prerelease remains0.3.0;0.4.1 is a local candidate.
 
 The current [GitHub development prerelease is 0.3.0](https://github.com/xefensor/pebble-activities/releases/tag/v0.3.0).
 Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.3.0/pebble-activities-0.3.0.tgz)
@@ -221,7 +232,13 @@ to the consuming watchface.
 `createContext` adapts standard Music and notification sources with their
 existing privacy/baseline rules. Its transient Music activity now uses the
 same simple model, without fabricated Track/Artist labels or a missing-artist
-placeholder. Notifications retain their separate bounded interruption policy.
+placeholder. Opt into `notificationAsActivity: true` to merge
+`context.notificationActivity()` into the same ACT3 roles. It carries app identity,
+sender/title, optional private body, app icon and the stock Notifications destination.
+The initial phone shade remains a suppressed baseline. All opt-in privacy views
+share one non-renewable eight-second arrival window; legacy context defaults keep
+their three/eight-second policy. See the [bridge contract](docs/VIEW-SPECIFICATION.md#optional-canonical-notification-activity-bridge-041)
+for the baseline ACK gate, preferences and expiry-bearing event sidecar.
 Native consumers include `pebble-activity-view.h`; these helpers register no SDK
 services and allocate no host UI. See the specification for exact failure rules.
 

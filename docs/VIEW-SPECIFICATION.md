@@ -139,6 +139,59 @@ The host must continue sending the activity transport even if it hides other
 plugins. Deduplicate dual-convention Music only by verified source identity,
 never by comparing track text.
 
+### Optional canonical notification activity bridge (0.4.1)
+
+`createContext({notificationAsActivity: true, ...})` exposes
+`notificationActivity()` as a copied normalized ACT3 standard text card. Its
+headline is the sender/title, optional detail is the opt-in message body, and
+name/caption is the app identity. App-only mode uses the app name as its headline
+and never supplies sender/body. A valid 24px source app icon is retained; otherwise
+the semantic identity is `message`. `openApp.watchAppUuid` is the stock Notifications
+app (`b2cae818-10f8-46df-ad2b-98ad2254a3c1`) for every privacy mode. The host owns
+layout, role and priority, using `selection.NOTIFICATIONS_KEY`
+(`builtin:notifications`) in its preferences. This key never replaces the source
+UUID. `notificationProvider()` supplies content-free metadata when the activity
+is available.
+
+Use the SDK envelope's validated `pluginUuid` when supplied. Older envelopes
+without it use adapter namespace `cdb6d497-547a-4940-8026-f7c97ea73a9d`; an invalid
+supplied UUID disables canonical adaptation. Source notification IDs are not
+exported as activity IDs. The bridge allocates transient occurrence/revision
+identity in RAM: source/provider/burst changes start another occurrence; visible
+text, artwork or lease changes advance its revision. Coalesced updates become
+visible at their original source receipt time, and accessor calls never advance
+revision, observation or expiry. Private content and IDs are never persisted or
+logged.
+
+The initial source snapshot after startup, reconnect, error or relevant settings
+change is a suppressed baseline. The accessor also waits for the current native
+baseline boundary's ACK; its release invokes `onChanged()` so the host can reproject.
+Keep the host's context session handshake and shared message queue running, merge
+the accessor into ordinary activity selection, and use its full revision/time
+tuple when deciding whether to reproject. Source withdrawal, redaction, permission
+loss, disable, disconnect and stop retract it. Identical redelivery cannot renew
+the original deadline; a shorter source expiry caps visible and queued records.
+
+The opt-in event policy stays independent of presentation: one newest allowed
+arrival and the same bounded eight-second window for every privacy mode, a 900ms
+stable-reading interval, no burst deadline renewal, and a three-second quiet gap
+before another burst. The consistent activity lease also gives every privacy mode
+the same opportunity to open its app. The default legacy presentation retains
+three seconds for title/app-only and eight seconds with body. Neither mode creates
+an unread history or replaces system notifications.
+
+In this opt-in mode legacy notice slots 2 and 3 are always empty, preventing a
+second fixed-priority renderer. `CONTEXT_STATE` is 13 bytes: the existing native
+session uint32LE at 0, burst uint32LE at 4 and paused flag byte at 8, followed by
+the fresh notification's original expiry uint32LE at 9. Burst and expiry are
+both zero while baseline-gated, unavailable or expired. A native host may alert
+only after validating the atomically paired context snapshot, matching its native
+session/baseline, confirming a new nonzero burst and `now < expiry`, and applying
+its vibration preference and Quiet Time. It must not infer freshness from the
+suppressed legacy slots. The deadline protects against delayed queued events.
+Without the opt-in, the original nine-byte sidecar and legacy notice slots remain
+unchanged; ACT1/ACT2/ACT3 activity wire formats do not change.
+
 ## Item and lifecycle rules
 
 An item supplies `type`, a nonempty `label`, observation/validity (defaulting to

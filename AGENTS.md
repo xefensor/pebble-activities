@@ -40,6 +40,11 @@ Pebble Watchface Core, Dynamic's renderer and any firmware fork.
   permissions and expiry. Unknown versions fail closed.
 - Private music and notification data never enter persistent caches or logs.
 - Keep existing music notification privacy/baseline behaviour when adapting it.
+- `createContext({notificationAsActivity:true})` emits a canonical ACT3 notification
+  through `notificationActivity()` and suppresses legacy notice slots. Preserve
+  source expiry for visible and queued records, the baseline-ACK gate, transient
+  occurrence/revision identity and the 13-byte event sidecar's original deadline.
+  Default hosts retain their nine-byte sidecar and existing context presentation.
 - Firmware-only native workout state and native cross-app sharing remain unsupported
   on the stock path. Never label fixtures as a live phone or physical-watch test.
 
