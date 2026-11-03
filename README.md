@@ -5,7 +5,7 @@ opt-in canonical notification activity and fixes shortened notification expiry.
 Version **0.4.0** introduced
 `activity/summary` schema4: standard summaries with typed headline/detail data,
 and media summaries with title/artist/artwork. Plugins publish content; consuming
-apps own priority, normal/compact layouts and animations.
+apps own priority, layouts and animations.
 
 Use `require('pebble-activities/summary')` for new providers and `nativeFormat:3`
 for the explicit ACT3 profile. Managed fresh providers persist only publication
@@ -13,57 +13,75 @@ counters; snapshot providers preserve native ownership and original leases.
 Optional app destinations remain separate from contextual controls.
 
 See the [summary specification](docs/SUMMARY-SPECIFICATION.md) for the implemented
-API and exact wire fields. Schema1/2/3 and ACT1/ACT2 remain compatible. The older
-schema3 example below remains supported. Dynamic, Timer and Open Activity have
+API and exact wire fields. Schema1/2/3 and ACT1/ACT2 remain compatible. Dynamic,
+Timer and Open Activity have
 their own integration/device validation; no Dashboard app is included.
 
 ## Publish an activity
 
 ```js
-var activity = require('pebble-activities').activity;
-var current = [];
-
-// Called for an actual source update, not every provider poll. The source owns
-// stable run IDs, revisions and the original observation/expiry of its data.
-function onTimerChanged(timer) {
-  current = [{
-    id: timer.runId,
-    revision: timer.revision,
-    observedAt: timer.observedAt,
-    validUntil: timer.validUntil,
-    state: timer.state,
-    kind: 'timer',
-    private: false,
-    content: timer.state === 'active'
-      ? activity.countdown({deadline: timer.deadline})
-      : activity.countdown({seconds: timer.remaining})
-  }];
-}
-
-var provider = activity.createProvider({
+var summary = require('pebble-activities/summary');
+var provider = summary.defineProvider({
   pluginUuid: OWN_PLUGIN_UUID,
-  appName: 'Timer',
-  getActivities: function() { return current; }
+  displayName: 'Delivery',
+  storage: localStorage,
+  readCurrent: function () {
+    // Example content. Read your authoritative current source here.
+    return [summary.standard('parcel-42', {
+      name: 'Parcel',
+      icon: 'delivery',
+      headline: summary.text('Driver nearby'),
+      detail: summary.text('Front door')
+    })];
+  }
 });
 Pebble.registerSourceHandler(provider.handleSource);
 ```
 
-Declare `activity/live` with `activity.SOURCE_PROPERTIES` in the plugin manifest.
-The provider serves a snapshot without renewing its source observation. The
-native Timer bridge has a separate adapter described below; this example shows
-a plugin that owns its live source data.
+Use your installed plugin's UUID. Declare the provider's `sourceDeclaration`
+in the plugin manifest: category `activity`, item `summary`, with
+`summary.SOURCE_PROPERTIES`. The library manages the response metadata; plugins
+author the content shown above. Keep one stable ID for the same ongoing item,
+and return `[]` when nothing should be shown.
 
-A text activity simply uses `content: 'Arriving at your door'`. A measurement
-uses `content: activity.value(6.2, 'mmol/L')`. Add `detail: 'Platform 3'` or a
-clock helper when a second piece of information is useful. Labels are optional
-and reserved for meaning such as `activity.countdown({deadline: end, label: 'Rest'})`.
-The app identity and image stay separate from content. Any kind of activity can
-occupy either host role; normal and compact are presentations of the same data.
+Choose the content that fits your source:
 
-See the [simple activity specification](docs/ACTIVITY-SPECIFICATION.md) for
-helpers, source declarations, privacy and migration. Real-phone and physical
-watch checks are recorded separately from portable/emulator results in
-[validation](docs/VALIDATION.md).
+| Content | Publish |
+| --- | --- |
+| Message or status | `summary.standard(id, {headline: summary.text('Driver nearby')})` |
+| Countdown | `summary.standard(id, {headline: summary.countdown({deadline: endUtcSeconds})})` |
+| Elapsed time | `summary.standard(id, {headline: summary.elapsed({since: startUtcSeconds})})` |
+| Measurement | `summary.standard(id, {headline: summary.value(6.2, 'mmol/L')})` |
+| Music or media | `summary.media(id, {title: 'Song', artist: 'Artist', itemId: trackId})` |
+
+Add optional `detail`, `name` or an icon when it contributes useful context.
+Media can include `artwork`. A completed/cancelled record is hidden unless its
+result is explicitly opted into; acknowledge a finished source by removing it
+from the next complete response. Keep timestamps in UTC seconds.
+
+For media, keep `itemId` stable while metadata or artwork arrives for the same
+track, and change it for the next track. A host can then animate the track change
+once while ordinary updates stay still.
+
+An optional `openApp: {watchAppUuid: APP_UUID}` identifies an already installed
+watchapp. It enables hosts such as Dynamic/Open Activity to open that whole app;
+it does not select a particular message or timer inside it. Contextual `actions`
+are separate capabilities for interactive hosts. Dynamic requests the app
+destination and display data only.
+
+The consuming app chooses priority and placement. In Dynamic, Primary uses the
+larger bottom-aligned content block and Secondary is one static row above it.
+Any source can occupy either role. Text starts at its beginning and truncates;
+it never scrolls. Plugins do not choose layouts or primary/secondary positions.
+
+Use `defineProvider` for a fresh authoritative read. A saved native timer or
+cached owner snapshot uses `defineSnapshotProvider`; retain its original
+observation, revision and validity instead of treating each poll as fresh data.
+The [summary specification](docs/SUMMARY-SPECIFICATION.md) covers the full API,
+manifest, limits and snapshot adapter. The
+[older activity API](docs/ACTIVITY-SPECIFICATION.md) remains supported for existing
+schema3 providers. Real-phone and physical-watch checks retain their separate
+scope in [validation](docs/VALIDATION.md).
 
 ## Version 0.4.1
 
@@ -74,7 +92,7 @@ watch checks are recorded separately from portable/emulator results in
 - Apply shortened source expiry to visible and queued notifications without renewal.
 - Keep legacy context defaults, earlier APIs and historical release bytes compatible.
 
-## Version 0.4.0 local candidate
+## Version 0.4.0
 
 - Add standard/media semantic source4 helpers and managed response headers.
 - Preserve saved Timer revisions, original observations, paused caps and acknowledged removal.
