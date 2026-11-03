@@ -437,7 +437,9 @@ module.exports = function createContext(options) {
     var title=clean(textOf(p.name)), appTitle=wire.normalizeText(clean(app),24);
     var heading=settings.notificationAppOnly ? clean(app) || clean(packageName) : title || clean(app);
     if (!allowed || !heading) { return null; }
-    return {title:title,appTitle:appTitle,appName:wire.normalizeText(clean(app)||clean(packageName)||'Notifications',64),heading:heading,
+    return {title:title,appTitle:appTitle,
+      appName:settings.notificationAppOnly || heading===clean(app) ? 'Notifications' :
+        wire.normalizeText(clean(app)||clean(packageName)||'Notifications',64),heading:heading,
       body:settings.notificationPreview && !settings.notificationAppOnly ? clean(textOf(p.body)) : ''};
   }
   function notificationData(envelope) {

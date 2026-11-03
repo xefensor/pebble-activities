@@ -137,10 +137,19 @@ test('Every notification activity privacy mode shares one bounded eight-second e
     f.source('notifications',envelope([]));f.source('notifications',envelope([notification('new')]));
     const card=f.client.notificationActivity(),body=mode.notificationPreview&&!mode.notificationAppOnly;
     assert.equal(card.presentation,1);assert.equal(card.main.text,mode.notificationAppOnly?'Signal':'Alexej');
+    assert.equal(card.caption,mode.notificationAppOnly?'Notifications':'Signal');
+    assert.equal(card.name,mode.notificationAppOnly?'Notifications':'Signal');
     assert.equal(card.support&&card.support.text,body?'Dinner in ten minutes':null);
+    if(mode.notificationAppOnly) { assert.ok(!JSON.stringify(card).includes('Alexej'));assert.ok(!JSON.stringify(card).includes('Dinner')); }
     assert.equal(card.validUntil,NOW/1000+8);assert.deepEqual(card.openApp,{watchAppUuid:'b2cae818-10f8-46df-ad2b-98ad2254a3c1'});
     f.tick(8000);assert.equal(f.client.notificationActivity(),null);
     assert.equal(f.state().event,0);assert.equal(f.state().expiresAt,0);
+  }
+  for(const title of ['', 'Signal']) {
+    const f=fixture({notificationAsActivity:true,settings:{showNotifications:true,notificationPreview:true}});f.client.refresh(true,17);
+    f.source('notifications',envelope([]));f.source('notifications',envelope([notification('new',title)]));
+    const card=f.client.notificationActivity();assert.equal(card.main.text,'Signal');assert.equal(card.caption,'Notifications');
+    assert.equal(card.name,'Notifications');assert.equal(card.support.text,'Dinner in ten minutes');
   }
 });
 

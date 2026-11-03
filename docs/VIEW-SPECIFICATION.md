@@ -145,7 +145,9 @@ never by comparing track text.
 `notificationActivity()` as a copied normalized ACT3 standard text card. Its
 headline is the sender/title, optional detail is the opt-in message body, and
 name/caption is the app identity. App-only mode uses the app name as its headline
-and never supplies sender/body. A valid 24px source app icon is retained; otherwise
+and never supplies sender/body. When app-only or the headline already equals the
+app name, name/caption is `Notifications` so the app name is not repeated. A valid
+24px source app icon is retained; otherwise
 the semantic identity is `message`. `openApp.watchAppUuid` is the stock Notifications
 app (`b2cae818-10f8-46df-ad2b-98ad2254a3c1`) for every privacy mode. The host owns
 layout, role and priority, using `selection.NOTIFICATIONS_KEY`
