@@ -1,2 +1,2 @@
-70e1ae5fb5337bc08c8f812af42e5d37e9c754e201fc182980f3acb1a54baf58  dist.zip
-ff167dbb6e1b879b4f24d3bbfcedd7a3cf82ea31351dd4b0c43e3f66448951b5  releases/pebble-activities-0.4.0.tgz
+2ccfa708a1fe73ed3a7a1f2d405a69f5fb07a44b73b6a36c4f4a507a29d8c9df  dist.zip
+9e640aea91d08633e91e59dab3d1e0ee6243efe0109d971e42d356a4d67affbe  releases/pebble-activities-0.4.0.tgz

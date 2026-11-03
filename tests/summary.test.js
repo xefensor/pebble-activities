@@ -105,7 +105,7 @@ test('both maximum ACT3 cards fit2672 bytes and fit never clips essential scalar
 });
 test('consumer prefers summary, freezes navigation mapping and rejects older nonempty after newer empty',async function(){
   var h=harness(),data=[author('a',undefined,{openApp:{watchAppUuid:PROVIDER}})],source=provider(store(),function(){return data;});
-  assert.equal(h.subscriptions[0].item,'summary');h.deliver(await source.source({}));assert.equal(h.consumer.catalogue().length,1);assert.equal(h.views.at(-1).cards[0].openApp.watchAppUuid,PROVIDER);
+  assert.equal(h.subscriptions[0].item,'summary');h.deliver(await source.source({}));assert.equal(h.consumer.catalogue().length,1);assert.equal(h.views.at(-1).cards[0].openApp.watchAppUuid,PROVIDER);assert.equal(h.views.at(-1).cards[0].caption,'Example');
   var first=await source.source({});data=[];h.deliver(await source.source({}));assert.equal(h.consumer.catalogue().length,0);h.deliver(first);assert.equal(h.consumer.catalogue().length,0);
 });
 test('consumer capability changes preserve imported owner revisions and malformed extensions drop only navigation',async function(){

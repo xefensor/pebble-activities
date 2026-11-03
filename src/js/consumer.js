@@ -161,6 +161,10 @@ module.exports=function createActivities(options) {
       var source=group.item===summary.ITEM?summary.sourceCard(instance,group.provider):group.item===activity.ITEM?activity.sourceCard(instance,group.provider):
         group.item===view.ITEM?view.sourceCard(instance,group.provider):sourceCard(instance,group.provider);
       if(!source){malformed=true;return;}
+      if(group.item===summary.ITEM&&!source.displayName){
+        var providerMetadata=installed.filter(function(p){return p.uuid===group.provider;})[0];
+        if(providerMetadata&&providerMetadata.name){source.displayName=providerMetadata.name;}
+      }
       var card=group.item===summary.ITEM?summary.toView(source):group.item===activity.ITEM?activity.toView(source):nativeFormat>=2&&group.item!==view.ITEM?view.fromLegacy(source):source;
       if(nativeFormat===3&&group.item!==summary.ITEM&&card){card=summaryView.fromLegacy(card);}
       if(!card&&group.item!==summary.ITEM){malformed=true;return;}
