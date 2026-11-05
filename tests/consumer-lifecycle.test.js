@@ -116,3 +116,122 @@ test('disconnect, disable and stop release the retained public view including pr
     finish(f);assert.equal(f.consumer.view(),null);
   }
 });
+
+test('configuration retries failed handles while keeping healthy provider subscriptions',()=>{
+  for(const code of ['TIMEOUT','PLUGIN_UNAVAILABLE','RATE_LIMITED','PERMISSION_DENIED']){
+    const f=fixture();f.consumer.refresh(true,42);f.data(source());
+    const failed=f.subscriptions[0];failed.request.onError({code});
+    f.configure({});assert.equal(f.subscriptions.length,2,code+' did not retry');assert.ok(failed.closed);
+    failed.request.onData(source('first',2,6));assert.equal(f.consumer.status().providers[0].state,'waiting');
+    f.data(source('first',2,6));assert.equal(f.consumer.catalogue()[0].revision,6);
+    f.configure({});assert.equal(f.subscriptions.length,2,'healthy handle was replaced after recovery');
+  }
+});
+
+test('periodic discovery retries a failed provider without depending on a settings edit',()=>{
+  const f=fixture();f.consumer.refresh(true,42);f.data(source());
+  f.subscriptions[0].request.onError({code:'PLUGIN_UNAVAILABLE'});
+  f.advance(60000);assert.equal(f.subscriptions.length,2);
+  assert.ok(f.subscriptions[0].closed);assert.equal(f.consumer.status().providers[0].state,'waiting');
+});
+
+test('one failed provider recovers into its original primary role without rebinding the healthy secondary',()=>{
+  const f=fixture(),other='11111111-1111-4111-8111-111111111111';
+  f.pebble.enumeratePlugins=()=>[P,other].map(uuid=>({uuid,sources:[{category:'activity',items:['summary'],properties:api.summary.SOURCE_PROPERTIES}]}));
+  f.consumer.refresh(true,42);
+  const first=f.subscriptions.find(s=>s.request.plugin===P),second=f.subscriptions.find(s=>s.request.plugin===other);
+  first.request.onData(source());second.request.onData({...source(),pluginUuid:other});
+  assert.deepEqual(f.consumer.view().cards.map(c=>c.provider),[P,other]);
+  first.request.onError({code:'PERMISSION_DENIED'});
+  assert.deepEqual(f.consumer.view().cards.map(c=>c.provider),[other]);
+  f.configure({});assert.equal(f.subscriptions.length,3);assert.equal(second.closed,false);
+  f.subscriptions.at(-1).request.onData(source());
+  assert.deepEqual(f.consumer.view().cards.map(c=>c.provider),[P,other]);
+});
+
+test('a re-bound source restores its exact cached summary without renewing owner observation or expiry',()=>{
+  const f=fixture();f.consumer.refresh(true,42);const envelope=source();f.data(envelope);
+  f.advance(5000);f.subscriptions[0].request.onError({code:'PERMISSION_DENIED'});
+  assert.equal(f.consumer.catalogue().length,0);
+  f.consumer.refresh(true,42);f.data(envelope);
+  assert.equal(f.consumer.status().providers[0].state,'ready');
+  const restored=f.consumer.catalogue()[0];assert.ok(restored);
+  assert.equal(restored.revision,5);assert.equal(restored.observedAt,NOW);assert.equal(restored.validUntil,NOW+630);
+});
+
+test('the same source handle can recover an identical valid summary after a transient error or permission recovery',()=>{
+  for(const code of ['TIMEOUT','PERMISSION_DENIED']){
+    const f=fixture();f.consumer.refresh(true,42);const cached=source();
+    cached.instances[1].properties.private.boolean.value=true;f.data(cached);
+    f.advance(5000);f.subscriptions[0].request.onError({code});assert.equal(f.consumer.catalogue().length,0);
+    f.data(cached);assert.equal(f.consumer.status().error,'');assert.equal(f.subscriptions.length,1);
+    const restored=f.consumer.catalogue()[0];assert.ok(restored);assert.equal(restored.revision,5);
+    assert.equal(restored.observedAt,NOW);assert.equal(restored.validUntil,NOW+630);
+    f.advance(25000);assert.equal(f.consumer.catalogue().length,0,'cached recovery renewed source availability');
+  }
+});
+
+test('an exact summary with a shortened availability lease clears private content at that original deadline',()=>{
+  const f=fixture();f.consumer.refresh(true,42);const cached=source();cached.instances[1].properties.private.boolean.value=true;
+  f.data(cached);f.advance(1000);f.data({...cached,validUntilMs:(NOW+2)*1000});
+  f.advance(1000);assert.equal(f.consumer.catalogue().length,0);assert.equal(f.consumer.status().error,'SOURCE_EXPIRED');
+  f.data({...cached,validUntilMs:(NOW+2)*1000});assert.equal(f.consumer.catalogue().length,0);
+});
+
+test('rejecting a malformed complete summary cannot poison a sibling owner revision or terminal history',()=>{
+  for(const terminal of [false,true]){
+    const f=fixture();f.consumer.refresh(true,42);f.data(source());
+    const bad=source('first',2,terminal?6:999),record=JSON.parse(bad.instances[1].properties.content.longText.text);
+    if(terminal){record.state='completed';record.result=true;bad.instances[1].properties.content.longText.text=JSON.stringify(record);}
+    bad.instances.push({instanceId:'malformed-sibling',properties:{}});
+    bad.instances[0].properties.activity_count.numericValue.value=2;
+    f.data(bad);assert.equal(f.consumer.catalogue().length,0);assert.equal(f.consumer.status().error,'INVALID_SOURCE');
+    f.data(source('first',3,terminal?7:6));
+    assert.equal(f.consumer.status().error,'');assert.equal(f.consumer.catalogue().length,1);
+    assert.equal(f.consumer.catalogue()[0].revision,terminal?7:6);
+  }
+});
+
+test('a malformed declaration from another plugin cannot hide a valid provider',()=>{
+  const f=fixture();f.consumer.refresh(true,42);f.data(source());
+  f.pebble.enumeratePlugins=()=>[
+    {uuid:P,sources:[{category:'activity',items:['summary'],properties:api.summary.SOURCE_PROPERTIES}]},
+    {uuid:'11111111-1111-4111-8111-111111111111',sources:[null]}
+  ];
+  f.configure({});assert.equal(f.consumer.status().error,'');assert.equal(f.consumer.catalogue().length,1);
+  assert.equal(f.subscriptions.length,1);
+});
+
+test('synchronous unsubscribe callbacks cannot republish a provider being disabled',()=>{
+  const f=fixture();const views=[];
+  f.pebble.subscribeToSource=request=>{
+    f.subscriptions.push({request,closed:false});
+    return {unsubscribe(){request.onData(source('first',2,6));}};
+  };
+  f.consumer.refresh(true,42);f.data(source());const before=f.sends.length;
+  f.configure({disabledProviders:[P]});
+  for(const sent of f.sends.slice(before)){
+    const bytes=sent.payload.ACTIVITY_DATA;if(bytes)views.push(bytes[5]);
+  }
+  assert.ok(views.length);assert.deepEqual(views,[0]);
+});
+
+test('recovery cannot restore expired private content or accept a changed owner observation at the same revision',()=>{
+  const f=fixture();f.consumer.refresh(true,42);const cached=source();
+  cached.instances[1].properties.private.boolean.value=true;cached.validUntilMs=(NOW+2)*1000;f.data(cached);
+  f.subscriptions.at(-1).request.onError({code:'PERMISSION_DENIED'});f.configure({});f.advance(3000);
+  f.consumer.refresh(true,42);f.data(cached);
+  assert.equal(f.consumer.catalogue().length,0);assert.equal(f.consumer.status().error,'SOURCE_EXPIRED');
+  const conflict=source('first',2);conflict.instances[1].properties.private.boolean.value=true;
+  conflict.instances[1].properties.observed_at.timestamp.value=NOW+1;
+  f.data(conflict);assert.equal(f.consumer.catalogue().length,0);assert.equal(f.consumer.status().error,'INVALID_SOURCE');
+});
+
+test('discovery and configuration never bypass an unacknowledged incarnation clear barrier',()=>{
+  const f=fixture();f.consumer.refresh(true,42);f.data(source());f.sends.at(-1).ok();
+  f.data(source('replacement',1,1));const barrier=f.sends.at(-1);
+  assert.ok(f.subscriptions[0].closed);assert.equal(f.consumer.catalogue().length,0);
+  f.configure({});f.advance(60000);
+  assert.equal(f.subscriptions.length,1,'waiting reset was rebound before its native clear');
+  barrier.ok();assert.equal(f.subscriptions.length,2);
+});

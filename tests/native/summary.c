@@ -34,6 +34,11 @@ int main(int argc,char **argv){
   assert(!strcmp(pav_text(card,&card->main),"A song"));assert(!strcmp(pav_text(card,&card->support),"Artist"));
   assert(card->visual_token[0]||card->visual_token[1]||card->visual_token[2]||card->visual_token[3]);
   pav_state_init(&state,17,true);assert(pav_state_receive(&state,packet,n,100));assert(pav_state_set_connected(&state,false));assert(!pav_state_select(&state,101,0));
+  n=load(argv[1],"summary-paused-media",packet);assert(pav_decode(packet,n,&decoded));card=&decoded.items[0];
+  assert(card->presentation==PAV_PRESENTATION_MEDIA&&card->source_state==PAV_PAUSED&&(card->flags&PAV_PRIVATE));
+  assert(!strcmp(pav_text(card,&card->main),"A song"));assert(!strcmp(pav_text(card,&card->support),"Artist"));
+  pav_state_init(&state,17,true);assert(pav_state_receive(&state,packet,n,100));
+  assert(pav_state_select(&state,101,0)->source_state==PAV_PAUSED);
   n=load(argv[1],"summary-long-media",packet);assert(pav_decode(packet,n,&decoded));
   assert(pav_text(&decoded.items[0],&decoded.items[0].support)[0]=='B');
   n=load(argv[1],"summary-max",packet);assert(n==2672);assert(pav_decode(packet,n,&decoded));assert(decoded.count==2);assert(decoded.items[0].pixel_bytes==800);

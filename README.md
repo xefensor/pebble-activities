@@ -1,7 +1,8 @@
 # Pebble Activities
 
-Semantic ongoing activities for **stock PebbleOS**. The local **0.4.3** candidate
-reduces timer/subscription churn and fixes consumer delivery lifecycle races.
+Semantic ongoing activities for **stock PebbleOS**. The local **0.4.4** candidate
+fixes missing activities after source failures, malformed responses and media pause.
+Version **0.4.3** reduced timer/subscription churn and fixed delivery lifecycle races.
 Version **0.4.2** added a lighter host entry and reduced consumer allocation.
 Version **0.4.0** introduced
 `activity/summary` schema4: standard summaries with typed headline/detail data,
@@ -83,6 +84,25 @@ manifest, limits and snapshot adapter. The
 [older activity API](docs/ACTIVITY-SPECIFICATION.md) remains supported for existing
 schema3 providers. Real-phone and physical-watch checks retain their separate
 scope in [validation](docs/VALIDATION.md).
+
+## Version 0.4.4 local candidate
+
+- Retry failed source bindings during configuration and periodic discovery while
+  keeping healthy subscriptions. Preserve a pending native reset-clear barrier.
+- Recover a still-valid cached summary on a new or recovered binding, including
+  on the same source handle. Apply changed source availability independently of
+  immutable owner observation, validity and revisions.
+- Reject malformed complete responses without installing their partial revision
+  floors or terminal history. Isolate malformed declarations from other plugins.
+- Invalidate callbacks before unsubscribing so a synchronous late delivery cannot
+  re-publish a disabled provider.
+- Preserve explicit media `playback:'paused'` as the existing native paused state.
+  Playing, buffering, stopped and unknown retain the generic active lifecycle;
+  no completion is inferred from playback state.
+
+Provider schemas, exports and ACT1/ACT2/ACT3 formats are unchanged. Existing
+ownership, expiry, privacy and notification baseline rules remain in place.
+This candidate has not been published; download links retain published0.4.2.
 
 ## Version 0.4.3 local candidate
 

@@ -68,7 +68,7 @@ function unique(parts){var seen=Object.create(null);return parts.filter(function
 function fromSummary(input,provider){
   var source=summary.sourceRecord(input,provider);if(!source){return null;}
   var r=source.record,media=r.type==='media',selected=r.summary==='detail'?1:0;
-  var card={provider:source.provider,id:r.id,kind:media?'music':typeof r.icon==='string'?r.icon:'activity',revision:source.revision,state:media?'active':r.state,
+  var card={provider:source.provider,id:r.id,kind:media?'music':typeof r.icon==='string'?r.icon:'activity',revision:source.revision,state:media?(r.playback==='paused'?'paused':'active'):r.state,
     observedAt:source.observedAt,validUntil:source.validUntil,private:source.private,unconfirmed:source.unconfirmed,showTerminal:!media&&r.result,
     caption:media?r.artist||'':r.name||source.displayName||'',main:media?compiledDatum({type:'text',text:r.title},source):compiledDatum(r.headline,source),
     support:media?(r.artist?compiledDatum({type:'text',text:r.artist},source):null):(r.detail?compiledDatum(r.detail,source):null),

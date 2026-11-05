@@ -22,7 +22,7 @@ function sourceCard(instance,provider) {
 function sourceItem(plugin,format) {
   if(!plugin||!wire.uuid(plugin.uuid)||!Array.isArray(plugin.sources)){return null;}
   var items=[];
-  plugin.sources.forEach(function(source){if(source.category===wire.CATEGORY&&Array.isArray(source.items)&&source.properties&&
+  plugin.sources.forEach(function(source){if(wire.object(source)&&source.category===wire.CATEGORY&&Array.isArray(source.items)&&source.properties&&
     Array.isArray(source.properties.schema_version)&&source.properties.schema_version.indexOf('numericValue')>=0){items=items.concat(source.items);}});
   return format>=3&&items.indexOf(summary.ITEM)>=0?summary.ITEM:
     format>=2&&items.indexOf(activity.ITEM)>=0?activity.ITEM:
@@ -59,7 +59,7 @@ module.exports=function createActivities(options) {
   function isEnabled(s){return s.enabled!==false && s.showActivities!==false;}
   function allowed(provider){return (!Array.isArray(currentSettings.providers)||currentSettings.providers.indexOf(provider)>=0) &&
     (!Array.isArray(currentSettings.disabledProviders)||currentSettings.disabledProviders.indexOf(provider)<0);}
-  function stopGroup(group){if(group.handle && typeof group.handle.unsubscribe==='function'){try{group.handle.unsubscribe();}catch(ignored){}}group.handle=null;group.generation++;}
+  function stopGroup(group){group.generation++;var handle=group.handle;group.handle=null;if(handle && typeof handle.unsubscribe==='function'){try{handle.unsubscribe();}catch(ignored){}}}
   function accepted(card){try{return typeof options.acceptActivity!=='function'||options.acceptActivity(clone(card))!==false;}catch(ignored){return false;}}
   function visible(card,t){return card.validUntil>t&&
     (nativeFormat<2||card.main.validUntil>t&&(!card.unconfirmed||!card.private&&card.main.retain))&&
@@ -201,11 +201,16 @@ module.exports=function createActivities(options) {
       if(group.incarnation===snapshotHeader.incarnation&&snapshotHeader.sequence<group.snapshotSequence){return;}
       var responseSignature=JSON.stringify(envelope.instances);
       if(group.incarnation===snapshotHeader.incarnation&&snapshotHeader.sequence===group.snapshotSequence){
-        if(group.responseSignature!==responseSignature){group.cards=[];group.error='INVALID_SOURCE';publish();}return;
+        if(group.responseSignature!==responseSignature){group.cards=[];group.error='INVALID_SOURCE';publish();return;}
+        // A source can recover on the same handle or immediately deliver its
+        // cached response on a new binding. Its outer availability can also
+        // change independently. Revalidate those cases without renewing any
+        // owner observation/validity; healthy exact duplicates remain inert.
+        if(group.ready&&!group.error&&expiry===group.expiresAt){return;}
       }
       group.incarnation=snapshotHeader.incarnation;group.publisherMode=snapshotHeader.mode;group.snapshotSequence=snapshotHeader.sequence;group.responseSignature=responseSignature;
     }
-    var next=[],seen=Object.create(null),malformed=false;
+    var next=[],seen=Object.create(null),pendingRevisions=Object.create(null),pendingOrders=[],malformed=false;
     envelope.instances.forEach(function(instance){
       if(group.item===summary.ITEM&&instance&&instance.instanceId==='@snapshot'){return;}
 
@@ -231,18 +236,24 @@ module.exports=function createActivities(options) {
         if(retained && retained.validUntil>t){next.push(retained);}return;
       }
       if(previous && (source.revision===previous.revision && (metadata!==previous.metadata || group.item===previous.item&&fingerprint!==previous.fingerprint) || previous.terminal && state!=='completed' && state!=='cancelled')){malformed=true;return;}
-      revisions[identity]={revision:source.revision,fingerprint:fingerprint,metadata:metadata,item:group.item,terminal:state==='completed'||state==='cancelled'};
+      pendingRevisions[identity]={revision:source.revision,fingerprint:fingerprint,metadata:metadata,item:group.item,terminal:state==='completed'||state==='cancelled'};
       if(!card){return;}
       card.sourceFormat=group.item===summary.ITEM?4:group.item===activity.ITEM?3:group.item===view.ITEM?2:1;
       if(card.kind==='music'){
         card.validUntil=Math.min(card.validUntil,card.observedAt+120);
         if(nativeFormat>=2){card.main.validUntil=Math.min(card.main.validUntil,card.validUntil);if(card.support){card.support.validUntil=Math.min(card.support.validUntil,card.validUntil);}}
       }
-      if(!Object.prototype.hasOwnProperty.call(orders,identity)){orders[identity]=++seenOrder;}
+      if(!Object.prototype.hasOwnProperty.call(orders,identity)){pendingOrders.push(identity);}
       if(card.validUntil>t&&((card.state!=='completed'&&card.state!=='cancelled')||nativeFormat>=2&&card.showTerminal)){next.push(card);}
     });
     // A malformed/redacted entry cannot leave an older private preview alive.
     if(malformed){next=[];}
+    else{
+      // A rejected complete response cannot advance another record's source
+      // floor or install a terminal tombstone through its valid-looking rows.
+      Object.keys(pendingRevisions).forEach(function(identity){revisions[identity]=pendingRevisions[identity];});
+      pendingOrders.forEach(function(identity){orders[identity]=++seenOrder;});
+    }
     group.cards=next;group.receivedAt=t;group.expiresAt=expiry;group.error=malformed?'INVALID_SOURCE':'';group.ready=true;
     if(expiry!==null && expiry<=t){uncertain(group);group.error='SOURCE_EXPIRED';}
     // Bound revision/ordering tombstones independently of untrusted source churn.
@@ -280,7 +291,8 @@ module.exports=function createActivities(options) {
       var providers=installed.filter(function(p){return allowed(p.uuid);}).map(function(p){items[p.uuid]=p.item;return p.uuid;});
       enumerated=true;
       Object.keys(groups).forEach(function(provider){if(providers.indexOf(provider)<0){cleanGroup(provider);}});
-      providers.forEach(function(provider){if(rebind||!groups[provider]||groups[provider].item!==items[provider]){bind(provider,items[provider]);}});
+      providers.forEach(function(provider){var group=groups[provider];if(rebind||!group||group.item!==items[provider]||
+        !group.rebinding&&(group.error||!group.handle)){bind(provider,items[provider]);}});
       lastError='';publish();
     }
     try{var result=pebble.enumeratePlugins();if(result && typeof result.then==='function'){result.then(apply,function(){if(run===generation){lastError='CATALOGUE_UNAVAILABLE';Object.keys(groups).forEach(cleanGroup);publish();}});}else{apply(result);}}

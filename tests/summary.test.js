@@ -96,6 +96,16 @@ test('media item tokens change only with item identity or title fallback, never 
   assert.notDeepEqual(a.visualToken,summary.toView(owner(Object.assign({},base,{itemId:'item-2'}))).visualToken);
   var absent=summary.toView(owner(summary.media('radio',{title:'Live'})));assert.equal(absent.caption,'');assert.equal(absent.support,null);assert.equal(absent.identitySymbol,3);
 });
+
+test('explicit paused media preserves its paused state in ACT3 without inventing completion for other playback states',function(){
+  ['playing','paused','buffering','stopped','unknown'].forEach(function(playback){
+    var card=summary.toView(owner(summary.media('player',{title:'Song',artist:'Artist',playback:playback})));
+    assert.equal(card.state,playback==='paused'?'paused':'active');
+    var packet=view.encode([card],{session:17,sequence:1,sentAt:100});
+    assert.equal(packet[26],playback==='paused'?2:1);
+    assert.equal(card.playback,playback);assert.equal(card.showTerminal,false);
+  });
+});
 test('both maximum ACT3 cards fit2672 bytes and fit never clips essential scalar units',function(){
   var image={width:40,height:40,palette:[255],pixels:Array(800).fill(0)},cards=[];
   for(var i=0;i<2;i++){cards.push({provider:PROVIDER,id:String(i).repeat(64),kind:'activity',state:'active',revision:1,observedAt:100,validUntil:1000,main:{type:'text',label:'',text:'A'.repeat(192)},caption:'',qualifier:'B'.repeat(109),image:image});}

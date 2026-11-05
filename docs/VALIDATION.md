@@ -1,5 +1,42 @@
 # Validation
 
+## 0.4.4 activity correctness local candidate — 5 November 2026
+
+The clean0.4.3 baseline is commit `fbd3ce42771a299e9ce79a23338ac254387f9d1b`.
+Six new lifecycle regressions failed before the fixes; their failures are
+recorded in `qa/0.4.4/regressions-before.log`. The candidate passes195 JavaScript
+tests, all three strict portable C suites,23 Python release-helper tests and
+the SDK4.33.1 Emery package build. Test/build evidence is in `qa/0.4.4/`.
+
+Reproduced failures were dead failed handles surviving configuration/discovery,
+an exact cached response leaving a fresh binding waiting with no activity,
+partial rows of a rejected complete response poisoning valid owner history,
+another plugin's malformed declaration hiding compatible providers, and a
+synchronous unsubscribe callback re-publishing a disabled provider. Recovery
+also works on the same SDK handle after a transient or permission error. Exact
+summary duplicates apply changed outer availability, including a shortened
+private-content deadline, without renewing owner metadata.
+
+Failed bindings now retry through existing discovery/configuration, healthy
+bindings remain subscribed, and waiting incarnation resets stay blocked on
+their existing native-clear acknowledgement. Complete-response per-record
+revision/order changes commit only after all rows validate. Callback generations
+advance before unsubscribe. Tests retain immutable observation/revision checks,
+expired-private clearing and stable primary/secondary order while one provider
+fails and recovers alongside a healthy provider.
+
+Schema4 explicit paused media previously compiled as active, losing its paused
+state before rendering. It now uses the existing ACT3 paused byte. A new generated
+fixture is decoded and selected as `PAV_PAUSED` by the actual portable C engine;
+tests cover every playback enum. Stopped, buffering and unknown do not invent a
+paused label or completion. Earlier wire fixture bytes are unchanged.
+
+No public API or wire/schema redesign, native C implementation, legacy context
+adapter, notification baseline, polling service or Timer publisher was changed.
+This is portable/package evidence. Phone and physical-watch behavior require
+separate app integration; no battery or hardware claim is made. The candidate
+remains local until a separately authorized publication.
+
 ## 0.4.3 consumer reliability local candidate — 5 November 2026
 
 Baseline `e4fedfc` passes 176 JavaScript tests and all three strict portable C

@@ -1,0 +1,155 @@
+✔ duplicate deliveries retain one absolute expiry callback without moving the source lease (7.755086ms)
+✔ settings-only reconfiguration keeps healthy subscriptions and invalidates disabled callbacks (1.433548ms)
+✔ provider disable withdraws private data before deferred discovery settles and rejects late delivery (0.491546ms)
+✔ disabling during bootstrap permits a fresh request after re-enabling (0.273438ms)
+✔ a view queued before an incarnation reset cannot acknowledge that reset barrier (0.577355ms)
+✔ old-session success and failure callbacks cannot affect a new session with reused sequences (0.779437ms)
+✔ disconnect, disable and stop release the retained public view including private capabilities (0.814414ms)
+✖ configuration retries failed handles while keeping healthy provider subscriptions (1.106945ms)
+✖ periodic discovery retries a failed provider without depending on a settings edit (0.501899ms)
+✖ a re-bound source restores its exact cached summary without renewing owner observation or expiry (0.442419ms)
+✖ rejecting a malformed complete summary cannot poison a sibling owner revision or terminal history (0.460875ms)
+✖ a malformed declaration from another plugin cannot hide a valid provider (0.501822ms)
+✖ synchronous unsubscribe callbacks cannot republish a provider being disabled (0.766615ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 7
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 31.489086
+
+✖ failing tests:
+
+test at tests/consumer-lifecycle.test.js:120:1
+✖ configuration retries failed handles while keeping healthy provider subscriptions (1.106945ms)
+  AssertionError [ERR_ASSERTION]: TIMEOUT did not retry
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/home/xela/Projekty/Pebble/pebble-activities/tests/consumer-lifecycle.test.js:124:28)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/consumer-lifecycle.test.js:131:1
+✖ periodic discovery retries a failed provider without depending on a settings edit (0.501899ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 2
+  
+      at TestContext.<anonymous> (/home/xela/Projekty/Pebble/pebble-activities/tests/consumer-lifecycle.test.js:134:27)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/consumer-lifecycle.test.js:138:1
+✖ a re-bound source restores its exact cached summary without renewing owner observation or expiry (0.442419ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'waiting' !== 'ready'
+  
+      at TestContext.<anonymous> (/home/xela/Projekty/Pebble/pebble-activities/tests/consumer-lifecycle.test.js:143:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'waiting',
+    expected: 'ready',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/consumer-lifecycle.test.js:148:1
+✖ rejecting a malformed complete summary cannot poison a sibling owner revision or terminal history (0.460875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (/home/xela/Projekty/Pebble/pebble-activities/tests/consumer-lifecycle.test.js:157:55)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/consumer-lifecycle.test.js:162:1
+✖ a malformed declaration from another plugin cannot hide a valid provider (0.501822ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'CATALOGUE_UNAVAILABLE'
+  - ''
+  
+      at TestContext.<anonymous> (/home/xela/Projekty/Pebble/pebble-activities/tests/consumer-lifecycle.test.js:168:26)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'CATALOGUE_UNAVAILABLE',
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/consumer-lifecycle.test.js:172:1
+✖ synchronous unsubscribe callbacks cannot republish a provider being disabled (0.766615ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  +   1,
+      0
+    ]
+  
+      at TestContext.<anonymous> (/home/xela/Projekty/Pebble/pebble-activities/tests/consumer-lifecycle.test.js:183:34)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Array],
+    expected: [Array],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
