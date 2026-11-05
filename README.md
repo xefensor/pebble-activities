@@ -1,8 +1,9 @@
 # Pebble Activities
 
-Semantic ongoing activities for **stock PebbleOS**. Version **0.4.2** adds a
-lighter host entry and reduces consumer allocation while retaining the versioned
-activity contracts. Version **0.4.0** introduced
+Semantic ongoing activities for **stock PebbleOS**. The local **0.4.3** candidate
+reduces timer/subscription churn and fixes consumer delivery lifecycle races.
+Version **0.4.2** added a lighter host entry and reduced consumer allocation.
+Version **0.4.0** introduced
 `activity/summary` schema4: standard summaries with typed headline/detail data,
 and media summaries with title/artist/artwork. Plugins publish content; consuming
 apps own priority, layouts and animations.
@@ -82,6 +83,30 @@ manifest, limits and snapshot adapter. The
 [older activity API](docs/ACTIVITY-SPECIFICATION.md) remains supported for existing
 schema3 providers. Real-phone and physical-watch checks retain their separate
 scope in [validation](docs/VALIDATION.md).
+
+## Version 0.4.3 local candidate
+
+- Reuse the existing expiry callback while its absolute deadline stays the same.
+- Keep healthy provider subscriptions during settings-only configuration. Disabled
+  providers withdraw immediately, including while discovery is waiting. Explicit
+  refresh, reconnection and provider removal retain their lifecycle rules.
+- Recover bootstrap after disabling/re-enabling before a native session arrives.
+- Ignore queued transport callbacks from earlier sessions or disabled/stopped
+  consumers. Only a view queued for a specific incarnation-reset barrier can
+  acknowledge that barrier.
+- Release the retained `view()` snapshot on disconnect, disable and stop, including
+  private content and action/navigation descriptors. Hosts must clear any copies
+  they separately retained through their own lifecycle handlers.
+
+Public exports, provider schemas, source revision/observation/expiry, native wire
+bytes and the legacy Music/phone heartbeat remain compatible. There are no new
+services, content caches or polling timers. The deterministic workload reduces
+20 unchanged-delivery expiry schedules/cancellations to zero and 20 unchanged
+settings resubscriptions to zero; this is work-count evidence, not battery or
+phone timing measurement. See [validation](docs/VALIDATION.md).
+
+This candidate has not been published. The download links below retain the
+published 0.4.2 artifacts until a separate release is authorized.
 
 ## Version 0.4.2
 

@@ -1,5 +1,58 @@
 # Validation
 
+## 0.4.3 consumer reliability local candidate — 5 November 2026
+
+Baseline `e4fedfc` passes 176 JavaScript tests and all three strict portable C
+suites. The candidate passes 183 JavaScript tests, the same three C suites and
+23 Python release-helper tests, and builds the SDK4.33.1 Emery package. Commands
+used the workspace recovery environment because this sandbox's plain Node26
+blocks the child-process calls used by existing bundle tests. Logs and the
+deterministic work comparison are in `docs/qa/0.4.3/`.
+
+The consumer now keeps an expiry callback when its absolute deadline is
+unchanged. Source observations and validity remain untouched. Settings-only
+configuration discovers provider changes without replacing healthy source
+subscriptions. Known disabled providers are synchronously unsubscribed and
+withdrawn before asynchronous discovery, whose response may be delayed or never
+arrive; callbacks from the removed subscription cannot restore their content.
+Explicit refresh and reconnection still rebind; the existing
+legacy Music/phone heartbeat and notification baseline logic are unchanged.
+
+Delivery callbacks carry a consumer lifecycle epoch and native session token.
+An old queued result cannot schedule retries or acknowledge a reset after a
+disconnect, disable, session change or stop. Reset-clear acknowledgements also
+capture the exact provider subscription generation: an earlier empty view
+queued before that reset cannot release its barrier. Bootstrap clears its
+pending latch when disabled and can request a new session after re-enabling.
+The consumer releases its retained public `view()` at those inactive lifecycle
+boundaries; hosts remain responsible for copies they separately retained.
+
+New regressions reproduce stale reset acknowledgements, reused native view
+sequences, bootstrap disable/re-enable, retained private views, expiry timing
+and healthy subscription reuse. Publisher write/readback, global revision
+floors, native owner state, privacy, original leases and terminal tombstones
+retain their existing tests. No C implementation, wire fixture, exported API or
+provider schema changed.
+
+`scripts/benchmark-consumer.cjs e4fedfc` runs both committed baseline and working
+candidate in isolated module graphs with sixteen synthetic 40px records. Under
+both default and custom selection:
+
+| Workload | Baseline | Candidate |
+| --- | ---: | ---: |
+|20 unchanged source deliveries: expiry timer schedules/cancellations|20 /20|0 /0|
+|20 unchanged settings updates: provider subscriptions|20|0|
+|20 unchanged settings updates: timer schedules/cancellations|40 /40|20 /20|
+
+The remaining settings-update timer work is periodic provider discovery.
+JSON work counts are unchanged from0.4.2. The emitted native frames remain
+byte-identical under both selectors, SHA-256
+`a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd`.
+These counts do not measure phone runtime, heap, physical-watch power or battery
+life. No real-phone or physical-watch validation was performed in this library
+pass. Consumer pins and installed PBWs are separate app work. This candidate
+remains local and published release bytes are preserved.
+
 ## Publication — 3 November 2026
 
 The [0.4.2 development prerelease](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.2)

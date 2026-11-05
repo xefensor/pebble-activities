@@ -1,0 +1,244 @@
+{
+  "description": "JSON calls/UTF-16 character counts and timer/subscription calls for sixteen 40px cards; counters exclude setup. No persistent data or phone timing.",
+  "baseline": "e4fedfc",
+  "defaultSelection": {
+    "before": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 0,
+          "stringifyChars": 0,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 catalogue reads": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 320,
+          "stringifyChars": 695600,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 forced projections": {
+          "parseCalls": 20,
+          "parseChars": 87788,
+          "stringifyCalls": 40,
+          "stringifyChars": 174088,
+          "timerSchedules": 20,
+          "timerCancellations": 20,
+          "subscriptions": 0
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 660,
+          "stringifyChars": 784780,
+          "timerSchedules": 20,
+          "timerCancellations": 20,
+          "subscriptions": 0
+        },
+        "20 unchanged settings updates": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 20,
+          "stringifyChars": 86300,
+          "timerSchedules": 40,
+          "timerCancellations": 40,
+          "subscriptions": 20
+        },
+        "source availability expiry": {
+          "parseCalls": 1,
+          "parseChars": 4388,
+          "stringifyCalls": 2,
+          "stringifyChars": 8701,
+          "timerSchedules": 1,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    },
+    "after": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 0,
+          "stringifyChars": 0,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 catalogue reads": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 320,
+          "stringifyChars": 695600,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 forced projections": {
+          "parseCalls": 20,
+          "parseChars": 87788,
+          "stringifyCalls": 40,
+          "stringifyChars": 174088,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 660,
+          "stringifyChars": 784780,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 unchanged settings updates": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 20,
+          "stringifyChars": 86300,
+          "timerSchedules": 20,
+          "timerCancellations": 20,
+          "subscriptions": 0
+        },
+        "source availability expiry": {
+          "parseCalls": 1,
+          "parseChars": 4388,
+          "stringifyCalls": 2,
+          "stringifyChars": 8701,
+          "timerSchedules": 1,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    }
+  },
+  "customSelection": {
+    "before": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 0,
+          "stringifyChars": 0,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 catalogue reads": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 320,
+          "stringifyChars": 695600,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 forced projections": {
+          "parseCalls": 340,
+          "parseChars": 783388,
+          "stringifyCalls": 360,
+          "stringifyChars": 869688,
+          "timerSchedules": 20,
+          "timerCancellations": 20,
+          "subscriptions": 0
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 980,
+          "stringifyChars": 1480380,
+          "timerSchedules": 20,
+          "timerCancellations": 20,
+          "subscriptions": 0
+        },
+        "20 unchanged settings updates": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 340,
+          "stringifyChars": 781900,
+          "timerSchedules": 40,
+          "timerCancellations": 40,
+          "subscriptions": 20
+        },
+        "source availability expiry": {
+          "parseCalls": 17,
+          "parseChars": 39152,
+          "stringifyCalls": 18,
+          "stringifyChars": 43465,
+          "timerSchedules": 1,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    },
+    "after": {
+      "work": {
+        "100 status reads": {
+          "parseCalls": 0,
+          "parseChars": 0,
+          "stringifyCalls": 0,
+          "stringifyChars": 0,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 catalogue reads": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 320,
+          "stringifyChars": 695600,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 forced projections": {
+          "parseCalls": 340,
+          "parseChars": 783388,
+          "stringifyCalls": 360,
+          "stringifyChars": 869688,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 duplicate source deliveries": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 980,
+          "stringifyChars": 1480380,
+          "timerSchedules": 0,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        },
+        "20 unchanged settings updates": {
+          "parseCalls": 320,
+          "parseChars": 695600,
+          "stringifyCalls": 340,
+          "stringifyChars": 781900,
+          "timerSchedules": 20,
+          "timerCancellations": 20,
+          "subscriptions": 0
+        },
+        "source availability expiry": {
+          "parseCalls": 17,
+          "parseChars": 39152,
+          "stringifyCalls": 18,
+          "stringifyChars": 43465,
+          "timerSchedules": 1,
+          "timerCancellations": 0,
+          "subscriptions": 0
+        }
+      },
+      "frameSha256": "a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd"
+    }
+  }
+}

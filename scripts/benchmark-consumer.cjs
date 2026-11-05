@@ -9,7 +9,7 @@ const crypto=require('node:crypto'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..'),baseline=process.argv[2];
 const N=1700000000;
 function run(revision,customSelection){
-  const totals={parseCalls:0,parseChars:0,stringifyCalls:0,stringifyChars:0};
+  const totals={parseCalls:0,parseChars:0,stringifyCalls:0,stringifyChars:0,timerSchedules:0,timerCancellations:0,subscriptions:0};
   const json={parse(text){totals.parseCalls++;totals.parseChars+=text.length;return JSON.parse(text);},
     stringify(value,replacer,space){const text=JSON.stringify(value,replacer,space);totals.stringifyCalls++;totals.stringifyChars+=text?text.length:0;return text;}};
   const context=vm.createContext({JSON:json,setTimeout,clearTimeout,Promise}),cache=new Map();
@@ -30,8 +30,8 @@ function run(revision,customSelection){
   const P='01234567-89ab-cdef-0123-456789abcdef';
   let now=N*1000,request,next=0;const timers=new Map(),frames=crypto.createHash('sha256');
   const options={nativeFormat:2,pebble:{enumeratePlugins:()=>[{uuid:P,name:'Example',sources:[{category:'activity',items:['card'],properties:view.SOURCE_PROPERTIES}]}],
-    subscribeToSource:value=>{request=value;return {unsubscribe(){}};}},now:()=>now,
-    later:(fn,ms)=>{const id=++next;timers.set(id,{fn,at:now+ms});return id;},cancelLater:id=>timers.delete(id),
+    subscribeToSource:value=>{totals.subscriptions++;request=value;return {unsubscribe(){}};}},now:()=>now,
+    later:(fn,ms)=>{totals.timerSchedules++;const id=++next;timers.set(id,{fn,at:now+ms});return id;},cancelLater:id=>{totals.timerCancellations++;timers.delete(id);},
     onView(){},send(payload,ok){if(payload.ACTIVITY_DATA){frames.update(Buffer.from(payload.ACTIVITY_DATA));}ok();}};
   if(customSelection)options.select=cards=>cards.slice(0,2);
   const consumer=create(options);consumer.refresh(true,42);
@@ -46,10 +46,11 @@ function run(revision,customSelection){
   measure('20 catalogue reads',()=>{for(let i=0;i<20;i++)consumer.catalogue();});
   measure('20 forced projections',()=>{for(let i=0;i<20;i++)consumer.reproject();});
   measure('20 duplicate source deliveries',()=>{for(let i=0;i<20;i++)request.onData({pluginUuid:P,validUntilMs:(N+30)*1000,instances});});
+  measure('20 unchanged settings updates',()=>{for(let i=0;i<20;i++)consumer.configure();});
   measure('source availability expiry',()=>{now=(N+30)*1000;const due=[...timers].filter(([,v])=>v.at<=now);for(const [id,timer]of due){timers.delete(id);timer.fn();}});
   consumer.stop();return {work:results,frameSha256:frames.digest('hex')};
 }
-const report={description:'JSON calls/UTF-16 character counts for sixteen 40px cards; counters exclude setup. No persistent data or phone timing.',
+const report={description:'JSON calls/UTF-16 character counts and timer/subscription calls for sixteen 40px cards; counters exclude setup. No persistent data or phone timing.',
   baseline:baseline||null,defaultSelection:{before:baseline?run(baseline,false):null,after:run(null,false)},
   customSelection:{before:baseline?run(baseline,true):null,after:run(null,true)}};
 if(baseline){for(const policy of ['defaultSelection','customSelection']){
