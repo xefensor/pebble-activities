@@ -1,5 +1,22 @@
 # Validation
 
+## 0.4.4 GitHub prerelease publication — 5 November 2026
+
+Published the [0.4.4 development prerelease](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.4)
+from tested source commit `df4f30f4a66419ce835959eeeec6de7999704fa0`.
+The automated release check and publication jobs pass. GitHub's published asset
+digests match the prepared frozen bytes:
+
+- `dist.zip`: `546c51050f2b3fa56ca5e93477fc0b3caf3fa84c645c6a089d185ce61b497725`
+- `pebble-activities-0.4.4.tgz`: `dffec3e05041515fbf9385a641adf6b40aedda7e8460c0d11ecb4ed019cd5abe`
+- `SHA256SUMS.txt`: `1ee2d86032b59363434b186be3df1bdb01a120c098830fb5b7c8cd397353b65b`
+
+This documentation follow-up preserves the tested source, published tag, archive
+bytes and checksums. The release configuration pins 0.4.4 to that source commit,
+so repeated preparation uses the original artifacts and release notes. Version
+0.4.3 was not released separately; its changes are included in 0.4.4. These are
+publication and package checks; the integration/device scope below is unchanged.
+
 ## 0.4.4 activity correctness local candidate — 5 November 2026
 
 The clean0.4.3 baseline is commit `fbd3ce42771a299e9ce79a23338ac254387f9d1b`.
@@ -34,8 +51,8 @@ paused label or completion. Earlier wire fixture bytes are unchanged.
 No public API or wire/schema redesign, native C implementation, legacy context
 adapter, notification baseline, polling service or Timer publisher was changed.
 This is portable/package evidence. Phone and physical-watch behavior require
-separate app integration; no battery or hardware claim is made. The candidate
-remains local until a separately authorized publication.
+separate app integration; no battery or hardware claim is made. These checks
+preceded the 0.4.4 publication documented above.
 
 ## 0.4.3 consumer reliability local candidate — 5 November 2026
 
@@ -87,8 +104,8 @@ byte-identical under both selectors, SHA-256
 `a8b8aa567caaa9a8a701b00f7b43a4ab3469e64bf8744afcde49d54d1ba668bd`.
 These counts do not measure phone runtime, heap, physical-watch power or battery
 life. No real-phone or physical-watch validation was performed in this library
-pass. Consumer pins and installed PBWs are separate app work. This candidate
-remains local and published release bytes are preserved.
+pass. Consumer pins and installed PBWs are separate app work. These changes
+were included in 0.4.4; earlier published release bytes remain preserved.
 
 ## Publication — 3 November 2026
 

@@ -1,6 +1,6 @@
 # Pebble Activities
 
-Semantic ongoing activities for **stock PebbleOS**. The local **0.4.4** candidate
+Semantic ongoing activities for **stock PebbleOS**. Published version **0.4.4**
 fixes missing activities after source failures, malformed responses and media pause.
 Version **0.4.3** reduced timer/subscription churn and fixed delivery lifecycle races.
 Version **0.4.2** added a lighter host entry and reduced consumer allocation.
@@ -102,7 +102,10 @@ scope in [validation](docs/VALIDATION.md).
 
 Provider schemas, exports and ACT1/ACT2/ACT3 formats are unchanged. Existing
 ownership, expiry, privacy and notification baseline rules remain in place.
-This candidate has not been published; download links retain published0.4.2.
+Published as the [0.4.4 development prerelease](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.4).
+The heading above retains the original release-notes identifier. The tested
+source, SDK package, tarball and tag remain frozen; documentation updates do not
+replace their bytes.
 
 ## Version 0.4.3 local candidate
 
@@ -125,8 +128,8 @@ services, content caches or polling timers. The deterministic workload reduces
 settings resubscriptions to zero; this is work-count evidence, not battery or
 phone timing measurement. See [validation](docs/VALIDATION.md).
 
-This candidate has not been published. The download links below retain the
-published 0.4.2 artifacts until a separate release is authorized.
+Version 0.4.3 was not released separately. Its changes are included in the
+published 0.4.4 development prerelease.
 
 ## Version 0.4.2
 
@@ -162,10 +165,10 @@ do not replace the release archive.
 
 ## Download
 
-The current [GitHub development prerelease is 0.4.2](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.2).
-Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.4.2/pebble-activities-0.4.2.tgz)
-or [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.4.2/dist.zip),
-and verify [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.4.2/SHA256SUMS.txt).
+The current [GitHub development prerelease is 0.4.4](https://github.com/xefensor/pebble-activities/releases/tag/v0.4.4).
+Download its [library package](https://github.com/xefensor/pebble-activities/releases/download/v0.4.4/pebble-activities-0.4.4.tgz)
+or [SDK package](https://github.com/xefensor/pebble-activities/releases/download/v0.4.4/dist.zip),
+and verify [SHA256SUMS.txt](https://github.com/xefensor/pebble-activities/releases/download/v0.4.4/SHA256SUMS.txt).
 [Earlier releases](https://github.com/xefensor/pebble-activities/releases) retain
 their original tags and bytes. Install [Timer](https://github.com/xefensor/pebble-app-timer)
 separately to publish native countdowns.
