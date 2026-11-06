@@ -1,3 +1,9 @@
+> [!IMPORTANT]
+> **This repository has moved to [xefensor/pebble-lib-activities](https://github.com/xefensor/pebble-lib-activities).**
+> Current development and documentation are maintained there as part of XOCE — Xef's Open Computing Ecosystem.
+> [Downloads and releases](https://github.com/xefensor/pebble-lib-activities/releases) · [Report an issue](https://github.com/xefensor/pebble-lib-activities/issues)
+> This repository is retained as a historical archive so existing links and releases remain available.
+
 # Pebble Activities
 
 Semantic ongoing activities for **stock PebbleOS**. Published version **0.4.4**
